@@ -1,0 +1,22 @@
+Package: MrQAP
+Type: Package
+Title: Estimating MRQAP on matrices and 3D arrays
+Version: 0.1.0
+Authors@R: c(
+    person(
+      "Robert W.", "Krause",
+      email = "robert.w.krause@uky.edu",
+      role = c("aut", "cre")
+    )
+  )
+Description: More about what it does (maybe more than one line).
+    Continuation lines should be indented.
+License: What license is it under?
+Encoding: UTF-8
+LazyData: true
+Imports:
+  lme4,
+  parallel,
+  dplyr,
+  nnet
+RoxygenNote: 7.3.2

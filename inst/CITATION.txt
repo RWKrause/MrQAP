@@ -1,0 +1,8 @@
+citHeader("To cite MrQAP in publications use:")
+
+bibentry(bibtype = "misc",
+  title        = "Estimating MRQAP with {MrQAP}",
+  author       = c(person(given = "Robert W.",
+                          family = "Krause")),
+  year         = "2025"
+ )
