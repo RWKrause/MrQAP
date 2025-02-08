@@ -71,9 +71,9 @@ QAPcssPermEst <- function(i,
                             mode = mode.)$pred
     } else {
       if (is.null(xRm.)) {
-        y. <- lapply(y., yRMPerm, CSS = TRUE)
+        y. <- lapply(y., RMPerm, CSS = TRUE)
       } else {
-        x.[[xi.]] <- lapply(x.[[xi.]], yRMPerm,CSS = TRUE)
+        x.[[xi.]] <- lapply(x.[[xi.]], RMPerm,CSS = TRUE)
       }
 
       pred_list <- vector(mode = 'list', length = length(y.))
