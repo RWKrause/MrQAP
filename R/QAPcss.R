@@ -294,7 +294,6 @@ QAPcss <- function(y,
                           x = x ,
                           g = g ,
                           RIO = RIO,
-                          rio = rio,
                           diag = diag,
                           mode = mode)
     pred <- cssd$pred
@@ -312,7 +311,6 @@ QAPcss <- function(y,
                                        x = xgr,
                                        g = array(gr, dim = dim(y[[gr]])),
                                        RIO = RIO[[gr]],
-                                       rio = rio,
                                        diag = diag,
                                        mode = mode)$pred
 
@@ -320,7 +318,6 @@ QAPcss <- function(y,
                                        x = xgr,
                                        g = array(gr, dim = dim(y[[gr]])),
                                        RIO = RIO[[gr]],
-                                       rio = rio,
                                        diag = diag,
                                        mode = mode)$valid
     }
