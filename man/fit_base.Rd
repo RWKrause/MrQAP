@@ -4,15 +4,7 @@
 \alias{fit_base}
 \title{Internal Auxiliary function to fit the base model in QAPcss()}
 \usage{
-fit_base(
-  mod = mod,
-  rand = rand,
-  family = family,
-  pred = pred,
-  nx = nx,
-  y = y,
-  use_robust_errors = use_robust_errors
-)
+fit_base(mod, rand, family, pred, nx, y, use_robust_errors)
 }
 \arguments{
 \item{mod}{formula; model to be estimated.}
