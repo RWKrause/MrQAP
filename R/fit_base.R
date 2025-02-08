@@ -12,14 +12,13 @@
 #' @import lme4
 #' @import nnet
 
-fit_base <- function(mod = mod,
-                     rand = rand,
-                     family = family,
-                     pred = pred,
-                     nx = nx,
-                     y = y,
-                     use_robust_errors = use_robust_errors) {
-  fit <- list()
+fit_base <- function(mod,
+                     rand,
+                     family,
+                     pred,
+                     nx,
+                     y,
+                     use_robust_errors) {
   if (use_robust_errors) {
     xv <- as.matrix(pred[,c(3:(2 + nx))])
   }
