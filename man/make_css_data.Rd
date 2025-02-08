@@ -4,7 +4,7 @@
 \alias{make_css_data}
 \title{Internal auxiliary function to shape data into internal QAPcss() format}
 \usage{
-make_css_data(y, x, g, RIO, rio, diag, mode)
+make_css_data(y, x, g, RIO, diag, mode)
 }
 \arguments{
 \item{y}{array or list; see \code{QAPcss()}}
@@ -14,8 +14,6 @@ make_css_data(y, x, g, RIO, rio, diag, mode)
 \item{g}{character or numeric; see \code{QAPcss()}}
 
 \item{RIO}{logical; see \code{QAPcss()}}
-
-\item{rio}{array or list; see \code{QAPcss()}}
 
 \item{diag}{logical; see \code{QAPcss()}}
 
