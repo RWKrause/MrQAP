@@ -15,13 +15,13 @@ fit_perm(family., predx, ref, xi., mod, fitx, rand, use_robust_errors)
 
 \item{xi.}{numeric; number of the predictor currently being permuted.}
 
+\item{mod}{formula; model to be estimated.}
+
 \item{fitx}{list; output from \code{fit_base()}.}
 
 \item{rand}{logical; are there any random intercepts requested?}
 
 \item{use_robust_errors}{logical; should standard errors be corrected by HC3?}
-
-\item{mod.}{formula; model to be estimated.}
 
 \item{nx}{numeric; number of predictors.}
 }
