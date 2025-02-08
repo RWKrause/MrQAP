@@ -382,7 +382,7 @@ QAPcss <- function(y,
 
   # baseline estimate
 
-  rand <- any(c(rig.,ris.,rir.,rip.,rio.))
+  rand <- any(c(rig,ris,rir,rip,rio))
 
   if (is.null(comparison)) {
     fit <- fit_base(mod = mod,
@@ -569,17 +569,13 @@ QAPcss <- function(y,
 
     if (any(char)) {
       res <- parLapply(cl = clust, 1:reps,
-                       fun = yQAPcssPermEst,
+                       fun = QAPcssPermEst,
                        y. = y,
                        x. = x,
                        g. = g,
                        mode. = mode,
                        diag. = diag,
-                       rig. = rig,
-                       ris. = ris,
-                       rir. = rir,
-                       rip. = rip,
-                       rio. = rio,
+                       rand. = rand,
                        family. = family,
                        groups. = groups,
                        fit. = fit,
