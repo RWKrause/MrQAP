@@ -4,7 +4,6 @@
 #' @param x array or list; see \code{QAPcss()}
 #' @param g character or numeric; see \code{QAPcss()}
 #' @param RIO logical; see \code{QAPcss()}
-#' @param rio array or list; see \code{QAPcss()}
 #' @param diag logical; see \code{QAPcss()}
 #' @param mode character; see \code{QAPcss()}
 #'
