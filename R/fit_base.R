@@ -22,7 +22,7 @@ fit_base <- function(mod,
   if (use_robust_errors) {
     xv <- as.matrix(pred[,c(3:(2 + nx))])
   }
-
+  fit <- list()
   if (!rand) {
     if (family == 'multinom') {
       base_model       <- multinom(mod, data = pred)
