@@ -185,7 +185,7 @@ QAPcssPermEst <- function(i,
                       mod. = mod.,
                       fitx = fit.,
                       rand = rand.,
-                      use_robust_errors. = use_robust_errors.)
+                      use_robust_errors = use_robust_errors.)
   } else {
     xresL <- vector(mode = 'list', length = length(comp.))
     for (k in 1:length(comp.)) {
@@ -198,7 +198,7 @@ QAPcssPermEst <- function(i,
                              mod. = mod.,
                              fitx = fit.[[k]],
                              rand = rand.,
-                             use_robust_errors. = use_robust_errors.)
+                             use_robust_errors = use_robust_errors.)
     }
   }
 
