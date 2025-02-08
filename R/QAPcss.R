@@ -267,20 +267,6 @@ QAPcss <- function(y,
   }
 
 
-  char <- c()
-  for (var in 1:nx) {
-    char <- c(char,!is.numeric(x[[var]][[1]]))
-  }
-
-
-  if (all(char) && nullhyp == 'qapspp') {
-    nullhyp <- 'qapy'
-    cat('All predictors are characters/factors.\n',
-          '"qapspp" is not implemented for this case.\n',
-          'Using "qapy" instead.\n',
-          'Maybe create separate dummy variables.\n\n')
-  }
-
 
   if (is.null(names(x))) {
     warning('x is not named. Consider naming it...')
@@ -483,7 +469,7 @@ QAPcss <- function(y,
 
 
 
-    for (xi in names(x)[!char]) {
+    for (xi in names(x)) {
       modx <- paste(xi,'~ 1')
       for (varx in names(x)[names(x) != xi]) {
         modx <- paste(modx,varx, sep = ' + ')
@@ -558,62 +544,6 @@ QAPcss <- function(y,
           fit[[k]]$abs[,xi]    <- Reduce(f = '+',
                                           resL[names(resL) == 'abs'],
                                           0)/reps
-        }
-      }
-    }
-
-    if (any(char)) {
-      res <- parLapply(cl = clust, 1:reps,
-                       fun = QAPcssPermEst,
-                       y. = y,
-                       x. = x,
-                       g. = g,
-                       mode. = mode,
-                       diag. = diag,
-                       rand. = rand,
-                       family. = family,
-                       groups. = groups,
-                       fit. = fit,
-                       comp. = comparison,
-                       RIO. = RIO,
-                       use_robust_errors. = use_robust_errors,
-                       xi. = NULL,
-                       xRm. = NULL,
-                       reference. = reference,
-                       mod. = mod)
-
-
-
-      if (is.null(comparison)) {
-        resL <- unlist(res, recursive = FALSE)
-
-        charV <- is.na( fit$lower[1,])
-        charV[1] <- FALSE
-
-        fit$lower[,charV]  <- (Reduce(f = '+', resL[names(resL) == 'lower'],
-                                      0)/reps)[,charV]
-        fit$larger[,charV] <- (Reduce(f = '+', resL[names(resL) == 'larger'],
-                                      0)/reps)[,charV]
-        fit$abs[,charV]    <- (Reduce(f = '+', resL[names(resL) == 'abs'],
-                                      0)/reps)[,charV]
-      } else {
-        for (k in 1:length(comparison)) {
-
-          resL <- unlist(res[[k]], recursive = FALSE)
-
-          charV <- is.na( fit[[k]]$lower[1,])
-          charV[1] <- FALSE
-
-          fit$lower[[k]][,charV]  <- (Reduce(f = '+',
-                                             resL[names(resL) == 'lower'],
-                                             0)/reps)[,charV]
-          fit$larger[[k]][,charV] <- (Reduce(f = '+',
-                                             resL[names(resL) == 'larger'],
-                                             0)/reps)[,charV]
-          fit$abs[[k]][,charV]    <- (Reduce(f = '+',
-                                             resL[names(resL) == 'abs'],
-                                             0)/reps)[,charV]
-
         }
       }
     }
