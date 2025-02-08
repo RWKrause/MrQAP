@@ -549,15 +549,15 @@ QAPcss <- function(y,
 
           resL <- unlist(resLL, recursive = FALSE)
 
-          fit[[k]]$lower[,xi]  <- (Reduce(f = '+',
+          fit[[k]]$lower[,xi]  <- Reduce(f = '+',
                                           resL[names(resL) == 'lower'],
-                                          0)/reps)[,xi]
-          fit[[k]]$larger[,xi] <- (Reduce(f = '+',
+                                          0)/reps
+          fit[[k]]$larger[,xi] <- Reduce(f = '+',
                                           resL[names(resL) == 'larger'],
-                                          0)/reps)[,xi]
-          fit[[k]]$abs[,xi]    <- (Reduce(f = '+',
+                                          0)/reps
+          fit[[k]]$abs[,xi]    <- Reduce(f = '+',
                                           resL[names(resL) == 'abs'],
-                                          0)/reps)[,xi]
+                                          0)/reps
         }
       }
     }
