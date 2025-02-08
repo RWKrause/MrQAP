@@ -51,7 +51,6 @@ fit_perm <- function(family.,
 
 
   } else {
-    xv <-
     if (!rand) {
       pm  <- glm(mod., data = predx, family = family.)
 
