@@ -14,7 +14,6 @@ make_css_data <- function(y,
                           x,
                           g,
                           RIO,
-                          rio,
                           diag,
                           mode) {
   n <- dim(y)[1]
@@ -84,7 +83,7 @@ make_css_data <- function(y,
                                        mode. = mode,
                                        diag. = diag)[vv])
 
-  if (rio) {
+  if (!is.null(RIO)) {
     if (!is.list(RIO)) {
       pred$ov <- as.factor(array_to_vector(RIO,
                                            mode. = mode,
