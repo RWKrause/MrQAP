@@ -4,7 +4,7 @@
 #' @param predx data.frame; predictor matrix.
 #' @param ref character; reference category if \code{family. == 'multinom'}.
 #' @param xi. numeric; number of the predictor currently being permuted.
-#' @param mod. formula; model to be estimated.
+#' @param mod formula; model to be estimated.
 #' @param fitx list; output from \code{fit_base()}.
 #' @param rand logical; are there any random intercepts requested?
 #' @param use_robust_errors logical; should standard errors be corrected by HC3?
@@ -32,7 +32,7 @@ fit_perm <- function(family.,
     predx$yv <- as.factor(predx$yv)
     predx$yv <- relevel(predx$yv, ref = ref)
 
-    pm   <- multinom(mod., data = predx, model = TRUE)
+    pm   <- multinom(mod, data = predx, model = TRUE)
     pres <- rbind(coefficients(pm),
                   coefficients(pm) /
                     summary(pm)$standard.errors )
@@ -52,7 +52,7 @@ fit_perm <- function(family.,
 
   } else {
     if (!rand) {
-      pm  <- glm(mod., data = predx, family = family.)
+      pm  <- glm(mod, data = predx, family = family.)
 
       if (use_robust_errors) {
         pres <- rbind(pm$coefficients,
@@ -64,10 +64,10 @@ fit_perm <- function(family.,
       }
     } else {
       if (family. == 'gaussian') {
-        pm <- lmer(mod., data = predx)
+        pm <- lmer(mod, data = predx)
 
       } else {
-        pm <- glmer(mod., data = predx, family = family.)
+        pm <- glmer(mod, data = predx, family = family.)
 
       }
       if (use_robust_errors) {
