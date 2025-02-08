@@ -403,11 +403,9 @@ QAPcss <- function(y,
                            rand = rand,
                            family = family,
                            pred = predK,
-                           n = n,
-                           groups = groups,
+                           nx = nx,
                            y = y,
-                           use_robust_errors = use_robust_errors,
-                           large = large)
+                           use_robust_errors = use_robust_errors)
     }
   }
 
