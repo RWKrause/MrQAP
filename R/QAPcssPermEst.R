@@ -24,22 +24,22 @@
 #' @import dplyr
 #'
 QAPcssPermEst <- function(i,
-                           y.,
-                           x.,
-                           g. = NULL,
-                           mode.,
-                           diag.,
-                           rand. = rand,
-                           family.,
-                           groups.,
-                           fit.,
-                           comp.,
-                           RIO.,
-                           use_robust_errors.,
-                           xi. = NULL,
-                           xRm. = NULL,
-                           reference. = NULL,
-                           mod.) {
+                          y.,
+                          x.,
+                          g. = NULL,
+                          mode.,
+                          diag.,
+                          rand. = rand,
+                          family.,
+                          groups.,
+                          fit.,
+                          comp.,
+                          RIO.,
+                          use_robust_errors.,
+                          xi. = NULL,
+                          xRm. = NULL,
+                          reference. = NULL,
+                          mod.) {
 
   nx <- length(x.)
   sufficient_data <- FALSE
