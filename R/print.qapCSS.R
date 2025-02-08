@@ -59,7 +59,7 @@ print.QAPCSS <- function(x,
               print_b = print_b,
               print_random = print_random,
               nullhyp = x$nullhyp,
-              family = x$family,
+              groups = x$groups,
               comp = x$comp)
     } else {
       nn <- names(x)[!(names(x) %in% c("nullhyp",
@@ -76,8 +76,6 @@ print.QAPCSS <- function(x,
                 print_b = print_b,
                 print_random = print_random,
                 nullhyp = x$nullhyp,
-                family = x$family,
-                random = x$random,
                 groups = x$groups,
                 comp = x$comp[[mod]])
       }
