@@ -184,8 +184,7 @@ QAPcssPermEst <- function(i,
                       ref = reference.,
                       mod = mod.,
                       fitx = fit.,
-                      xi. = xi,
-                      mod = mod,
+                      xi. = xi.,
                       rand = rand.,
                       use_robust_errors = use_robust_errors.)
   } else {
@@ -198,7 +197,7 @@ QAPcssPermEst <- function(i,
                              predx = predK,
                              ref = reference.,
                              mod = mod.,
-                             xi. = xi,
+                             xi. = xi.,
                              fitx = fit.[[k]],
                              rand = rand.,
                              use_robust_errors = use_robust_errors.)
