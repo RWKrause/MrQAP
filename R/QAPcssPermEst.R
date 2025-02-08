@@ -66,7 +66,6 @@ QAPcssPermEst <- function(i,
                             x = x.,
                             g = g.,
                             RIO = RIO.,
-                            rio = rio.,
                             diag = diag.,
                             mode = mode.)$pred
     } else {
@@ -87,7 +86,6 @@ QAPcssPermEst <- function(i,
                                          x = xgr,
                                          g = array(gr, dim = dim(y.[[gr]])),
                                          RIO = RIO.[[gr]],
-                                         rio = rio.,
                                          diag = diag.,
                                          mode = mode.)$pred
       }
