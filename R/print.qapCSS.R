@@ -19,8 +19,6 @@ print.QAPCSS <- function(x,
                           print_b = FALSE,
                           print_random = FALSE,
                           ...) {
-
-  source('glm_tab.R')
   if (x$family != 'multinom') {
     if (!any(x$random)) {
       cat("\nGeneralized Linear Network Model for CSS\n\n")
