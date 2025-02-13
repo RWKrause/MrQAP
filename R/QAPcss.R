@@ -380,11 +380,11 @@ QAPcss <- function(y,
 
 
 
-  clust <- makeCluster(ncores, outfile = error_file)
+  clust <- parallel::makeCluster(ncores, outfile = error_file)
 
 
   if (nullhyp == "qapy") {
-    res <- parLapply(cl = clust, 1:reps,
+    res <- parallel::parLapply(cl = clust, 1:reps,
                      fun = QAPcssPermEst,
                      y. = y,
                      x. = x,
@@ -483,7 +483,7 @@ QAPcss <- function(y,
         }
       }
 
-      res <- parLapply(cl = clust, 1:reps,
+      res <- parallel::parLapply(cl = clust, 1:reps,
                        fun = QAPcssPermEst,
                        y. = y,
                        x. = x,
