@@ -4,14 +4,7 @@
 \alias{glm_tab}
 \title{Internal auxiliary function to help plot QAPcss() output}
 \usage{
-glm_tab(
-  x,
-  print_b = print_b,
-  print_random = print_random,
-  comp,
-  nullhyp,
-  groups
-)
+glm_tab(x, print_b = print_b, print_random = print_random, comp, nullhyp)
 }
 \arguments{
 \item{x}{list; an \code{R} object of class \code{QAPCSS} returned by \code{QAPcss(...)}.}
@@ -23,8 +16,6 @@ glm_tab(
 \item{comp}{list; see \code{QAPcss(...)}}
 
 \item{nullhyp}{character or numeric; see \code{QAPcss(...)}}
-
-\item{groups}{character or numeric; see \code{QAPcss(...)}}
 }
 \value{
 Prints the results table.
