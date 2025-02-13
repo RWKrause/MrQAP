@@ -16,13 +16,13 @@
 #'
 #' @param seed integer; Given the random nature of the permutation, every call of \code{QAPglm()} will lead to different responses that will asymptotically converge with larger values for \code{reps}. To get consistent answers, one should specify a random number seed with the seed argument (e.g., \code{seed = 1402}).
 #'
-#' @param groups vector; It might be that a larger network is composed of qualitatively different groups. In that case, it might be desirable to only permute within groups. \code{groups} is a \code{vector} of \code{length = nrow(y)}, indicating the grouping of the nodes. (\code{groups} together with a \code{list} of \code{y} is not yet implemented but will be added soon.)
+#' @param groups vector; It might be that a larger network is composed of qualitatively different groups. In that case, it might be desirable to only permute within groups. \code{groups} is a \code{vector} of \code{length = nrow(y)}, indicating the grouping of the nodes. If \code{y} is a \code{list} then \code{groups} needs to be a \code{list} of vectors.
 #'
 #' @param ncores integer; QAPglm() is parallelized (using the \code{parallel} package). If multiple cores are available, using them cuts the estimation in near linear relation by using multiple cores (e.g., \code{ncores = 10}). Be aware that depending on the \code{R} installation, parallelization can fail when too many cores are addressed at the same time. If you are using an HPC cluster, the recommendation is to submit many jobs, each only asking for 5-20 cores, and running only a few hundred \code{reps}. The resulting outputs can then be combined with the auxiliary function \code{combine_qap_estimates()}.
 #'
 #' @param same_x_4_all_y logical; If \code{y} is a \code{list} but all \code{x} should remain the same for all \code{y}, toggle this to TRUE. This might be relevant if similar but different networks between the same nodes are predicted. Should probably be combined with \code{random_intercept_groups = TRUE}.
 #'
-#' @param random_intercept_... logical; Multiple arguments exist to specify random intercepts. instead of relying on \code{glm()} estimation will use the \code{lmer()} or \code{glmer()} from the \code{lme4} package to obtain parameter estimates and t-values for the permutation assessment. \code{random_intercept_group} includes a random intercept for each group in groups. \code{random_intercept_sender} and \code{random_intercept_receiver} add intercepts for each node on the corresponding dimension (row = sender, column = receiver). Additionally, there is \code{random_intercept_other}. This argument expects an input corresponding to every element in \code{y} (either a similarly sized \code{matrix} or a \code{list} of matrices corresponding to each element in \code{y} when is a \code{list}). This \code{matrix} (or \code{list} thereof) will be used to create cell-specifc random intercepts. This might be useful if some relationships are qualitatively different than others but all are expected to follow the same pattern (e.g., for some cells differences in (intercept and) residual variance are expected). You can submit \code{list}s of \code{list}s of matrices if you want multiple random intercept variables added
+#' @param random_intercept_... logical; Multiple arguments exist to specify random intercepts. instead of relying on \code{glm()} estimation will use the \code{lmer()} or \code{glmer()} from the \code{lme4} package to obtain parameter estimates and t-values for the permutation assessment. \code{random_intercept_nets} includes a random intercept for each network when \code{y} is a \code{list}. \code{random_intercept_sender} and \code{random_intercept_receiver} add intercepts for each node on the corresponding dimension (row = sender, column = receiver). Additionally, there is \code{random_intercept_other}. This argument expects an input corresponding to every element in \code{y} (either a similarly sized \code{matrix} or a \code{list} of matrices corresponding to each element in \code{y} when is a \code{list}). This \code{matrix} (or \code{list} thereof) will be used to create cell-specifc random intercepts. This might be useful if some relationships are qualitatively different than others but all are expected to follow the same pattern (e.g., for some cells differences in (intercept and) residual variance are expected). You can submit \code{list}s of \code{list}s of matrices if you want multiple random intercept variables added
 #'
 #' @param use_robust_errors logical; indicates if internal standard errors should be adjusted for heteroskedasticity using the HC3 adjustment. This is by default \code{FALSE} but recommended when linear probability models are being used or heterogeneity is otherwise suspected. Results will overall be more conservative and thus significant findings more reliable.
 #'
@@ -47,7 +47,7 @@ QAPglm <- function(y,
                     groups = NULL,
                     ncores = NULL,
                     same_x_4_all_y = FALSE,
-                    random_intercept_groups   = FALSE,
+                    random_intercept_nets   = FALSE,
                     random_intercept_sender   = FALSE,
                     random_intercept_receiver = FALSE,
                     random_intercept_other = NULL,
@@ -61,7 +61,7 @@ QAPglm <- function(y,
   }
 
 
-  rig <- random_intercept_groups
+  rin <- random_intercept_nets
   ris <- random_intercept_sender
   rir <- random_intercept_receiver
   RIO <- random_intercept_other
@@ -153,8 +153,8 @@ QAPglm <- function(y,
 
   rand_int <- ''
 
-  if (rig) {
-    rand_int <- paste(rand_int,'+ (1|gv)')
+  if (rin) {
+    rand_int <- paste(rand_int,'+ (1|nv)')
   }
 
   if (ris) {
@@ -181,7 +181,7 @@ QAPglm <- function(y,
   mod <- as.formula(mod)
   fit <- list()
 
-  rand <- any(c(rig, ris, rir,  rio))
+  rand <- any(c(rin, ris, rir,  rio))
 
 
   # baseline estimate
@@ -205,7 +205,7 @@ QAPglm <- function(y,
 
   } else {
     if (family == 'gaussian') {
-      base_model          <- lme4::lmer(mod, data = pred)
+      base_model <- lme4::lmer(mod, data = pred)
 
 
     } else {
@@ -349,7 +349,7 @@ QAPglm <- function(y,
   }
   fit$mode <- mode
   fit$reps <- reps
-  fit$groups <- groups
+  fit$groups <- unique(unlist(groups))
   fit$simple_fit <- base_model
   fit$robust_se <- use_robust_errors
 
