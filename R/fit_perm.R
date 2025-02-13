@@ -4,10 +4,10 @@
 #' @param predx data.frame; predictor matrix.
 #' @param ref character; reference category if \code{family. == 'multinom'}.
 #' @param xi. numeric; number of the predictor currently being permuted.
-#' @param mod. formula; model to be estimated.
+#' @param mod formula; model to be estimated.
 #' @param fitx list; output from \code{fit_base()}.
 #' @param rand logical; are there any random intercepts requested?
-#' @param use_robust_errors. logical; should standard errors be corrected by HC3?
+#' @param use_robust_errors logical; should standard errors be corrected by HC3?
 #' @param nx numeric; number of predictors.
 #'
 #' @returns Returns if a current permutation is more or less extreme than observed.
@@ -15,16 +15,16 @@
 #' @import nnet
 
 
-fit_perm <- function(family. = family.,
-                     predx = pred,
-                     ref = reference.,
-                     xi. = xi.,
-                     mod. = mod.,
-                     fitx = fit.,
-                     rand = rand,
-                     use_robust_errors. = use_robust_errors) {
+fit_perm <- function(family.,
+                     predx,
+                     ref,
+                     xi.,
+                     mod,
+                     fitx,
+                     rand,
+                     use_robust_errors) {
 
-  if (use_robust_errors.) {
+  if (use_robust_errors) {
     xv <- as.matrix(pred[,c(3:(2 + nx))])
   }
 
@@ -32,7 +32,7 @@ fit_perm <- function(family. = family.,
     predx$yv <- as.factor(predx$yv)
     predx$yv <- relevel(predx$yv, ref = ref)
 
-    pm   <- multinom(mod., data = predx, model = TRUE)
+    pm   <- multinom(mod, data = predx, model = TRUE)
     pres <- rbind(coefficients(pm),
                   coefficients(pm) /
                     summary(pm)$standard.errors )
@@ -51,11 +51,10 @@ fit_perm <- function(family. = family.,
 
 
   } else {
-    xv <-
     if (!rand) {
-      pm  <- glm(mod., data = predx, family = family.)
+      pm  <- glm(mod, data = predx, family = family.)
 
-      if (use_robust_errors.) {
+      if (use_robust_errors) {
         pres <- rbind(pm$coefficients,
                       pm$coefficients / HC3(xv,
                                             residuals(pm)))
@@ -65,13 +64,13 @@ fit_perm <- function(family. = family.,
       }
     } else {
       if (family. == 'gaussian') {
-        pm <- lmer(mod., data = predx)
+        pm <- lmer(mod, data = predx)
 
       } else {
-        pm <- glmer(mod., data = predx, family = family.)
+        pm <- glmer(mod, data = predx, family = family.)
 
       }
-      if (use_robust_errors.) {
+      if (use_robust_errors) {
         pres <- rbind(summary(pm)$coefficients[,1],
                       summary(pm)$coefficients[,1] /
                         HC3(xv,residuals(pm)))

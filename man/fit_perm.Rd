@@ -4,16 +4,7 @@
 \alias{fit_perm}
 \title{Internal Auxiliary function to a permutation model for QAPcss()}
 \usage{
-fit_perm(
-  family. = family.,
-  predx = pred,
-  ref = reference.,
-  xi. = xi.,
-  mod. = mod.,
-  fitx = fit.,
-  rand = rand,
-  use_robust_errors. = use_robust_errors
-)
+fit_perm(family., predx, ref, xi., mod, fitx, rand, use_robust_errors)
 }
 \arguments{
 \item{family.}{character; model family to be estimated.}
@@ -24,13 +15,13 @@ fit_perm(
 
 \item{xi.}{numeric; number of the predictor currently being permuted.}
 
-\item{mod.}{formula; model to be estimated.}
+\item{mod}{formula; model to be estimated.}
 
 \item{fitx}{list; output from \code{fit_base()}.}
 
 \item{rand}{logical; are there any random intercepts requested?}
 
-\item{use_robust_errors.}{logical; should standard errors be corrected by HC3?}
+\item{use_robust_errors}{logical; should standard errors be corrected by HC3?}
 
 \item{nx}{numeric; number of predictors.}
 }

@@ -24,22 +24,22 @@
 #' @import dplyr
 #'
 QAPcssPermEst <- function(i,
-                           y.,
-                           x.,
-                           g. = NULL,
-                           mode.,
-                           diag.,
-                           rand. = rand,
-                           family.,
-                           groups.,
-                           fit.,
-                           comp.,
-                           RIO.,
-                           use_robust_errors.,
-                           xi. = NULL,
-                           xRm. = NULL,
-                           reference. = NULL,
-                           mod.) {
+                          y.,
+                          x.,
+                          g. = NULL,
+                          mode.,
+                          diag.,
+                          rand. = rand,
+                          family.,
+                          groups.,
+                          fit.,
+                          comp.,
+                          RIO.,
+                          use_robust_errors.,
+                          xi. = NULL,
+                          xRm. = NULL,
+                          reference. = NULL,
+                          mod.) {
 
   nx <- length(x.)
   sufficient_data <- FALSE
@@ -66,14 +66,13 @@ QAPcssPermEst <- function(i,
                             x = x.,
                             g = g.,
                             RIO = RIO.,
-                            rio = rio.,
                             diag = diag.,
                             mode = mode.)$pred
     } else {
       if (is.null(xRm.)) {
-        y. <- lapply(y., yRMPerm, CSS = TRUE)
+        y. <- lapply(y., RMPerm, CSS = TRUE)
       } else {
-        x.[[xi.]] <- lapply(x.[[xi.]], yRMPerm,CSS = TRUE)
+        x.[[xi.]] <- lapply(x.[[xi.]], RMPerm,CSS = TRUE)
       }
 
       pred_list <- vector(mode = 'list', length = length(y.))
@@ -87,7 +86,6 @@ QAPcssPermEst <- function(i,
                                          x = xgr,
                                          g = array(gr, dim = dim(y.[[gr]])),
                                          RIO = RIO.[[gr]],
-                                         rio = rio.,
                                          diag = diag.,
                                          mode = mode.)$pred
       }
@@ -184,10 +182,11 @@ QAPcssPermEst <- function(i,
     xresL <- fit_perm(family. = family.,
                       predx = pred,
                       ref = reference.,
-                      mod. = mod.,
+                      mod = mod.,
                       fitx = fit.,
+                      xi. = xi.,
                       rand = rand.,
-                      use_robust_errors. = use_robust_errors)
+                      use_robust_errors = use_robust_errors.)
   } else {
     xresL <- vector(mode = 'list', length = length(comp.))
     for (k in 1:length(comp.)) {
@@ -197,10 +196,11 @@ QAPcssPermEst <- function(i,
       xresL[[k]] <- fit_perm(family. = family.,
                              predx = predK,
                              ref = reference.,
-                             mod. = mod.,
+                             mod = mod.,
+                             xi. = xi.,
                              fitx = fit.[[k]],
                              rand = rand.,
-                             use_robust_errors. = use_robust_errors)
+                             use_robust_errors = use_robust_errors.)
     }
   }
 
