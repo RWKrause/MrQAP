@@ -5,7 +5,6 @@
 #' @param print_random logical; Shall all random intercepts be returned? Default FALSE
 #' @param comp list; see \code{QAPcss(...)}
 #' @param nullhyp character or numeric; see \code{QAPcss(...)}
-#' @param groups character or numeric; see \code{QAPcss(...)}
 #'
 #' @returns Prints the results table.
 
@@ -13,8 +12,7 @@ glm_tab <- function(x,
                     print_b = print_b,
                     print_random = print_random,
                     comp,
-                    nullhyp,
-                    groups) {
+                    nullhyp) {
 
   if (!is.null(comp)) {
     cat("\n\nComparison between ",
@@ -60,12 +58,7 @@ glm_tab <- function(x,
     cat('\nRandom Intercepts\n')
 
     cmat <- round(x$random.intercepts,3)
-    if (length(unique(groups)) != length(x$random.intercepts)) {
-      cat('Some random intercepts were not estimated.\n',
-          'Group specific intercepts will not be named.\n\n')
-    } else {
-      rownames(cmat) <- as.character(groups[order(groups)])
-    }
+
     print.table(cmat)
     cat('--------------\n')
   }
