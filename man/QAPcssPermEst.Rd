@@ -8,7 +8,6 @@ QAPcssPermEst(
   i,
   y.,
   x.,
-  g. = NULL,
   mode.,
   diag.,
   rand. = rand,
@@ -30,8 +29,6 @@ QAPcssPermEst(
 \item{y.}{array or list; same as \code{y} in \code{QAPcss()}}
 
 \item{x.}{array or list; same as \code{x} in \code{QAPcss()}}
-
-\item{g.}{vector; similar to as \code{groups} in \code{QAPcss()}}
 
 \item{mode.}{character; same as \code{mode} in \code{QAPcss()}}
 
