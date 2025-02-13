@@ -3,7 +3,6 @@
 #' @param i NULL; iterator of \code{parLapply()}
 #' @param y. array or list; same as \code{y} in \code{QAPcss()}
 #' @param x. array or list; same as \code{x} in \code{QAPcss()}
-#' @param g. vector; similar to as \code{groups} in \code{QAPcss()}
 #' @param mode. character; same as \code{mode} in \code{QAPcss()}
 #' @param diag. logical; same as \code{diag} in \code{QAPcss()}
 #' @param rand. logical; TRUE if any random intercepts are requested
@@ -26,7 +25,6 @@
 QAPcssPermEst <- function(i,
                           y.,
                           x.,
-                          g. = NULL,
                           mode.,
                           diag.,
                           rand. = rand,
@@ -45,11 +43,6 @@ QAPcssPermEst <- function(i,
   sufficient_data <- FALSE
   trial <- 0
 
-  char <- c()
-  for (var in 1:nx) {
-    char <- c(char,!is.numeric(x.[[var]][[1]]))
-  }
-
   y_cat <- na.omit(unique(as.vector(unlist(y.))))
 
   while (!sufficient_data && trial < 10000) {
@@ -64,7 +57,7 @@ QAPcssPermEst <- function(i,
 
       pred <- make_css_data(y = y.,
                             x = x.,
-                            g = g.,
+                            nets = 1,
                             RIO = RIO.,
                             diag = diag.,
                             mode = mode.)$pred
@@ -84,7 +77,7 @@ QAPcssPermEst <- function(i,
         }
         pred_list[[gr]] <- make_css_data(y = y.[[gr]],
                                          x = xgr,
-                                         g = array(gr, dim = dim(y.[[gr]])),
+                                         nets = gr,
                                          RIO = RIO.[[gr]],
                                          diag = diag.,
                                          mode = mode.)$pred
@@ -107,39 +100,21 @@ QAPcssPermEst <- function(i,
     }
 
     x_ok <- TRUE
-    if (any(!char)) {
-      x_ok <- pred |>
-        select(names(pred)[names(pred) %in% names(x.)]) |>
-        select(where(is.numeric)) |>
-        apply(MARGIN = 2, FUN = unique)
-      if (!is.list(x_ok)) {
-        x_ok <- ifelse(length(x_ok) > 1, TRUE, FALSE)
-      } else {
-        x_ok <- x_ok |>
-          lapply(FUN = length) |>
-          unlist() > 1
-        x_ok <- all(x_ok)
-      }
 
+    x_ok <- pred |>
+      select(names(pred)[names(pred) %in% names(x.)]) |>
+      select(where(is.numeric)) |>
+      apply(MARGIN = 2, FUN = unique)
+    if (!is.list(x_ok)) {
+      x_ok <- ifelse(length(x_ok) > 1, TRUE, FALSE)
+    } else {
+      x_ok <- x_ok |>
+        lapply(FUN = length) |>
+        unlist() > 1
+      x_ok <- all(x_ok)
     }
-    if (any(char)) {
-      for (var in names(x.)[char]) {
-        x_cat <- x.[[var]] |>
-          unlist() |>
-          as.vector() |>
-          unique() |>
-          na.omit()
-        x2_cat <- pred[[var]] |>
-          unique() |>
-          na.omit()
 
-        x_present <- ifelse(all(x_cat %in% x2_cat), TRUE, FALSE)
-        x_mult <- all(table(pred[[var]] ) > 2)
-        x_ok2 <- x_mult * x_present
 
-        x_ok <- x_ok * x_ok2
-      }
-    }
 
 
     if (nrow(pred) != 0 && x_ok && y_ok && !is.null(comp.)) {
