@@ -50,13 +50,6 @@ make_qap_data <- function(y,
 
   yv <- as.vector(y)[vv]
 
-  if (is.null(g)) {
-    g <- rep(1, n)
-  }
-  gm <- matrix(rep(g,each = n),n,n)
-  gm[!valid] <- NA
-
-
   sv <- matrix(1:n,n,n)
   sv[!valid] <- NA
 
@@ -64,7 +57,7 @@ make_qap_data <- function(y,
   rv[!valid] <- NA
 
   pred <- data.frame(yv = yv,
-                     gv = as.vector(gm)[vv],
+                     nv = as.factor(net),
                      sv = as.vector(sv)[vv],
                      rv = as.vector(rv)[vv])
 
@@ -83,7 +76,6 @@ make_qap_data <- function(y,
     }
   }
 
-  pred$r_net <- as.factor(net)
   pred$location <- as.vector(matrix(1:n**2,n,n))[vv]
 
   return(pred)
