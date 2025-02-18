@@ -20,7 +20,7 @@ fit_base <- function(mod,
                      y,
                      use_robust_errors) {
   if (use_robust_errors) {
-    xv <- as.matrix(pred[,c(3:(2 + nx))])
+    xv <- as.matrix(pred[,(ncol(pred) - nx + 1):ncol(pred)])
   }
   fit <- list()
   if (!rand) {
