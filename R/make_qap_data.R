@@ -29,7 +29,7 @@ make_qap_data <- function(y,
     x[[xi]] <- RMPerm(x[[xi]], g)
   }
 
-  n <- nrow(y)
+  n <- dim(y)[1]
   valid <- matrix(TRUE,n,n)
   if (!diag) {
     diag(valid) <- FALSE
