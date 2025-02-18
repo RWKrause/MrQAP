@@ -36,13 +36,11 @@ make_css_data <- function(y,
     valid[is.na(x[[var]])] <- FALSE
   }
 
-
   y[!valid] <- NA
 
   for (var in 1:nx) {
     x[[var]][!valid] <- NA
   }
-
 
   vv <- array_to_vector(valid,
                         mode. = mode,
@@ -51,18 +49,8 @@ make_css_data <- function(y,
                         mode. = mode,
                         diag. = diag)[vv]
 
-
-
   pred <- data.frame(yv = yv,
                      nv = nets)
-
-
-  for (var in c(1:nx)) {
-    pred[[names(x)[var]]] <- array_to_vector(x[[var]],
-                                             mode. = mode,
-                                             diag. = diag)[vv]
-  }
-
 
   per <- sen <- rec <- array(NA, dim = c(n,n,n))
 
@@ -96,5 +84,10 @@ make_css_data <- function(y,
     }
   }
 
+  for (var in c(1:nx)) {
+    pred[[names(x)[var]]] <- array_to_vector(x[[var]],
+                                             mode. = mode,
+                                             diag. = diag)[vv]
+  }
   return(list(pred = pred, valid = valid))
 }
