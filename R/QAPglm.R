@@ -182,7 +182,7 @@ QAPglm <- function(y,
   rand <- any(c(rin, ris, rir,  rio))
 
   # baseline estimate
-  xv <- as.matrix(pred[,6:ncol(pred)])
+  xv <- as.matrix(pred[,(ncol(pred) - length(x) + 1):ncol(pred)])
 
   if (!rand) {
     if (family == 'gaussian') {
