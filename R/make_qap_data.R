@@ -46,8 +46,6 @@ make_qap_data <- function(y,
     x[[var]][!valid] <- NA
   }
 
-
-
   yv <- as.vector(y)[vv]
 
   sv <- matrix(1:n,n,n)
@@ -60,11 +58,11 @@ make_qap_data <- function(y,
                      nv = as.factor(net),
                      sv = as.vector(sv)[vv],
                      rv = as.vector(rv)[vv])
+  pred$location <- as.vector(matrix(1:n**2,n,n))[vv]
 
   for (var in c(1:nx)) {
     pred[[names(x)[var]]] <- as.vector(x[[var]])[vv]
   }
-
 
   if (!is.null(RIO)) {
     if (!is.list(RIO)) {
@@ -75,8 +73,5 @@ make_qap_data <- function(y,
       }
     }
   }
-
-  pred$location <- as.vector(matrix(1:n**2,n,n))[vv]
-
   return(pred)
 }
