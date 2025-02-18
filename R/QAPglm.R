@@ -143,8 +143,6 @@ QAPglm <- function(y,
     pred <- Reduce(f = 'rbind', pred_list)
   }
 
-
-
   mod <- 'yv ~ 1'
 
   for (var in names(x)) {
@@ -183,9 +181,8 @@ QAPglm <- function(y,
 
   rand <- any(c(rin, ris, rir,  rio))
 
-
   # baseline estimate
-
+  xv <- as.matrix(pred[,5:(4 + length(x))])
 
   if (!rand) {
     if (family == 'gaussian') {
@@ -195,41 +192,32 @@ QAPglm <- function(y,
     } else {
       base_model      <- glm(mod, data = pred, family = family)
     }
+    resid <- residuals(base_model)
     fit$coefficients  <- base_model$coefficients
     if (use_robust_errors) {
-      fit$t <- fit$coefficients / HC3(xv,fit$residuals)
+      fit$t <- fit$coefficients / HC3(xv,resid)
     } else {
       fit$t <- summary(base_model)$coefficients[,3]
     }
-
-
   } else {
     if (family == 'gaussian') {
       base_model <- lme4::lmer(mod, data = pred)
-
-
     } else {
       base_model  <- lme4::glmer(mod, data = pred, family = family)
       fit$log_lik <- summary(base_model)[[6]]
     }
     fit$coefficients  <- summary(base_model)$coefficients[,1]
-
+    resid <- residuals(base_model)
     if (use_robust_errors) {
-      fit$t <- fit$coefficients / HC3(xv,fit$residuals)
+      fit$t <- fit$coefficients / HC3(xv,resid)
     } else {
       fit$t <- summary(base_model)$coefficients[,3]
     }
-
   }
-
-
-
-
 
   if ((nullhyp == "qapspp") && (nx == 1)) {
     nullhyp <- "qapy"
   }
-
 
   if (nullhyp == "qapy") {
     res <- parallel::parLapply(cl = clust, 1:reps,
@@ -254,10 +242,7 @@ QAPglm <- function(y,
     fit$larger <- Reduce(f = '+', resL[names(resL) == 'larger'],0)/reps
     fit$abs    <- Reduce(f = '+', resL[names(resL) == 'abs'],0)/reps
 
-
-
   } else if (nullhyp == "qapspp") {
-
     fit$lower  <- matrix(NA, nrow = 2, ncol = (nx + 1))
     fit$larger <- matrix(NA, nrow = 2, ncol = (nx + 1))
     fit$abs    <- matrix(NA, nrow = 2, ncol = (nx + 1))
@@ -278,7 +263,6 @@ QAPglm <- function(y,
         modx <- as.formula(modx)
         xm <- lmer(modx, data = pred)
       }
-
       xR <- residuals(xm)
       xRm <- x
 
@@ -291,7 +275,6 @@ QAPglm <- function(y,
               as.character(pred$r_net) == net]
         }
       }
-
 
       res <- parallel::parLapply(cl = clust, 1:reps,
                        fun = QAPglmPermEst,
@@ -321,9 +304,6 @@ QAPglm <- function(y,
                                     resL[names(resL) == 'abs'],
                                     0)/reps
     }
-
-
-
   }
 
   stopCluster(clust)
@@ -334,8 +314,6 @@ QAPglm <- function(y,
     colnames(fit$larger)    <- c('(Intercept)', names(x))
     colnames(fit$abs)       <- c('(Intercept)', names(x))
   }
-
-
 
   fit$nullhyp <- nullhyp
   fit$diag <- diag
