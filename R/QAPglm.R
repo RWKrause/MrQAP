@@ -182,7 +182,7 @@ QAPglm <- function(y,
   rand <- any(c(rin, ris, rir,  rio))
 
   # baseline estimate
-  xv <- as.matrix(pred[,5:(4 + length(x))])
+  xv <- as.matrix(pred[,6:ncol(pred)])
 
   if (!rand) {
     if (family == 'gaussian') {
@@ -203,7 +203,7 @@ QAPglm <- function(y,
     if (family == 'gaussian') {
       base_model <- lme4::lmer(mod, data = pred)
     } else {
-      base_model  <- lme4::glmer(mod, data = pred, family = family)
+      base_model <- lme4::glmer(mod, data = pred, family = family)
       fit$log_lik <- summary(base_model)[[6]]
     }
     fit$coefficients  <- summary(base_model)$coefficients[,1]
@@ -221,20 +221,20 @@ QAPglm <- function(y,
 
   if (nullhyp == "qapy") {
     res <- parallel::parLapply(cl = clust, 1:reps,
-                     fun = QAPglmPermEst,
-                     y. = y,
-                     xRm. = x,
-                     xi. = NULL,
-                     mode. = mode,
-                     diag. = diag,
-                     mod. = mod,
-                     groups. = groups,
-                     fit. = fit,
-                     family. = family,
-                     RIO. = RIO,
-                     use_robust_errors. = use_robust_errors,
-                     same_x_4_all_y. = same_x_4_all_y,
-                     rand. = rand)
+                               fun = QAPglmPermEst,
+                               y. = y,
+                               xRm. = x,
+                               xi. = NULL,
+                               mode. = mode,
+                               diag. = diag,
+                               mod. = mod,
+                               groups. = groups,
+                               fit. = fit,
+                               family. = family,
+                               RIO. = RIO,
+                               use_robust_errors. = use_robust_errors,
+                               same_x_4_all_y. = same_x_4_all_y,
+                               rand. = rand)
 
     resL <- unlist(res,recursive = FALSE)
 
@@ -271,26 +271,25 @@ QAPglm <- function(y,
       } else {
         for (net in 1:length(y)) {
           xRm[[xi]][[net]][pred$location[
-            as.character(pred$r_net) == net]] <- xR[
-              as.character(pred$r_net) == net]
+            as.character(pred$nv) == net]] <- xR[as.character(pred$nv) == net]
         }
       }
 
       res <- parallel::parLapply(cl = clust, 1:reps,
-                       fun = QAPglmPermEst,
-                       y. = y,
-                       xi. = xi,
-                       mode. = mode,
-                       diag. = diag,
-                       mod. = mod,
-                       family. = family,
-                       groups. = groups,
-                       fit. = fit,
-                       xRm. = xRm,
-                       RIO. = RIO,
-                       use_robust_errors. = use_robust_errors,
-                       same_x_4_all_y. = same_x_4_all_y,
-                       rand. = rand)
+                                 fun = QAPglmPermEst,
+                                 y. = y,
+                                 xi. = xi,
+                                 mode. = mode,
+                                 diag. = diag,
+                                 mod. = mod,
+                                 family. = family,
+                                 groups. = groups,
+                                 fit. = fit,
+                                 xRm. = xRm,
+                                 RIO. = RIO,
+                                 use_robust_errors. = use_robust_errors,
+                                 same_x_4_all_y. = same_x_4_all_y,
+                                 rand. = rand)
 
       resL <- unlist(res, recursive = FALSE)
 
