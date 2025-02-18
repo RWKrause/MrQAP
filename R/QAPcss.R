@@ -20,11 +20,11 @@
 #'
 #' @param seed integer; Given the random nature of the permutation, every call of \code{QAPglm()} will lead to different responses that will asymptotically converge with larger values for \code{reps}. To get consistent answers, one should specify a random number seed with the seed argument (e.g., \code{seed = 1402}).
 #'
-#' @param groups vector; It might be that a CSS is composed of qualitatively different groups. In that case, it might be desirable to only permute within groups. \code{groups} is a \code{vector} of \code{length = nrow(y)}, indicating the grouping of the nodes. (\code{groups} together with a \code{list} of \code{y} is not yet implemented but will be added soon.)
+#' @param groups vector; It might be that a CSS is composed of qualitatively different groups. In that case, it might be desirable to only permute within groups. \code{groups} is a \code{vector} of \code{length = nrow(y)}, indicating the grouping of the nodes. If \code{y} is a \code{list} then \code{groups} needs to be a \code{list} of vectors.
 #'
 #' @param ncores integer; QAPcss() is parallelized (using the \code{parallel} package). If multiple cores are available, using them cuts the estimation in near linear relation by using multiple cores (e.g., \code{ncores = 10}). Be aware that depending on the \code{R} installation, parallelization can fail when too many cores are addressed at the same time. If you are using an HPC cluster, the recommendation is to submit many jobs, each only asking for 5-20 cores, and running only a few hundred \code{reps}. The resulting outputs can then be combined with the auxiliary function \code{combine_qap_estimates()}.
 #'
-#' @param random_intercept_... logical; Multiple arguments exist to specify random intercepts. instead of relying on \code{glm()} estimation will use the \code{lmer()} or \code{glmer()} from the \code{lme4} package to obtain parameter estimates and t-values for the permutation assessment. \code{random_intercept_group} includes a random intercept for each group in groups. \code{random_intercept_sender}, \code{random_intercept_receiver}, and \code{random_intercept_perceiver} add intercepts for each node on the corresponding dimension. Additionally, there is \code{random_intercept_other}. This argument expects an input corresponding to every element in \code{y} (either a similarly sized \code{matrix} or a \code{list} of \code{array}s corresponding to each element in \code{y} when \code{y} is a \code{list}). This \code{array} (or \code{list} thereof) will be used to create cell-specifc random intercepts. This might be useful if some relationships are qualitatively different than others but all are expected to follow the same pattern (e.g., for some cells differences in (intercept and) residual variance are expected). You can submit \code{list}s of \code{list}s of matrices if you want multiple random intercept variables added
+#' @param random_intercept_... logical; Multiple arguments exist to specify random intercepts. instead of relying on \code{glm()} estimation will use the \code{lmer()} or \code{glmer()} from the \code{lme4} package to obtain parameter estimates and t-values for the permutation assessment. \code{random_intercept_nets} includes a random intercept for each separate network in \code{y} when \code{y} is a \code{list}. \code{random_intercept_sender}, \code{random_intercept_receiver}, and \code{random_intercept_perceiver} add intercepts for each node on the corresponding dimension. Additionally, there is \code{random_intercept_other}. This argument expects an input corresponding to every element in \code{y} (either a similarly sized \code{matrix} or a \code{list} of \code{array}s corresponding to each element in \code{y} when \code{y} is a \code{list}). This \code{array} (or \code{list} thereof) will be used to create cell-specifc random intercepts. This might be useful if some relationships are qualitatively different than others but all are expected to follow the same pattern (e.g., for some cells differences in (intercept and) residual variance are expected). You can submit \code{list}s of \code{list}s of matrices if you want multiple random intercept variables added
 #'
 #' @param use_robust_errors logical; indicates if internal standard errors should be adjusted for heteroskedasticity using the HC3 adjustment. This is by default \code{FALSE} but recommended when linear probability models are being used or heterogeneity is otherwise suspected. Results will overall be more conservative and thus significant findings more reliable.
 #'
@@ -56,7 +56,7 @@ QAPcss <- function(y,
                    reference = NULL,
                    comparison = NULL,
                    use_robust_errors = FALSE,
-                   random_intercept_group = FALSE,
+                   random_intercept_nets = FALSE,
                    random_intercept_sender = FALSE,
                    random_intercept_receiver = FALSE,
                    random_intercept_perceiver = FALSE,
@@ -108,16 +108,19 @@ QAPcss <- function(y,
 
   nx <- length(x)
 
-  rig <- random_intercept_group
+  rin <- random_intercept_nets
   rip <- random_intercept_perceiver
   ris <- random_intercept_sender
   rir <- random_intercept_receiver
   RIO <- random_intercept_other
+
   if (!is.null(RIO)) {
     rio <- TRUE
   } else {
     rio <- FALSE
   }
+
+
 
   if (is.null(groups) && rig) {
     warning('Faulty argument!
@@ -126,7 +129,6 @@ QAPcss <- function(y,
     rig <- FALSE
   }
 
-  rand <- any(c(rig, rip, ris, rir, rio))
 
 
 
@@ -142,12 +144,13 @@ QAPcss <- function(y,
       if (any(dim(x[[var]]) != dim(y))) {
         stop('Wrong data entry!
            Not all arrays are the same size! Check variable ',
-           var,
-           ' in x.')
+             var,
+             ' in x.')
       }
     }
 
     n <- nrow(y)
+
     if (!is.null(groups)) {
       if (length(groups) != n) {
         stop('Wrong data entry!
@@ -158,43 +161,16 @@ QAPcss <- function(y,
       groups <- as.factor(rep(1,n))
     }
 
-    g <- array(NA, dim = c(n,n,n))
-    for (i in 1:n) {
-      g[,,i] <- groups[i]
-    }
+    nets <- as.factor(rep(1,n))
 
-    sym <- c()
-    for (i in 1:n) {
-      sym <- c(isSymmetric(y[,,i]),sym)
-    }
   } else {
 
-    for (var in 1:nx) {
-      for (gr in unique(groups)) {
-        if (any(dim(x[[var]][[gr]]) != sum(groups == gr))) {
-          stop('Wrong data entry in x ', var,' for group ', gr,
-               "\n each element in x must be a list containing ",
-               "a 3-dimensional array for each group.",
-               "\n each of these arrays have the same dimensions as the ",
-               "corresponding element in y.\n")
-        }
-      }
-    }
-    g <- NULL
-
-    groups <- c()
+    nets <- c()
     for (gr in 1:length(y)) {
-      groups <- c(groups, rep(gr,dim(y[[gr]])[1]))
+      nets <- c(nets, rep(gr,dim(y[[gr]])[1]))
     }
 
-    n <- length(groups)
-
-    sym <- c()
-    for (gr in unique(groups)) {
-      for (i in 1:dim(y[[gr]])[1]) {
-        sym <- c(isSymmetric(y[[gr]][,,i]),sym)
-      }
-    }
+    n <- length(nets)
   }
 
 
@@ -203,7 +179,7 @@ QAPcss <- function(y,
             Random intercepts requested for multinomial choice.
             This is not implemented.
             Estimation will continue with standard nnet::multinom().')
-    rig <- FALSE
+    rin <- FALSE
     rip <- FALSE
     ris <- FALSE
     rir <- FALSE
@@ -239,12 +215,6 @@ QAPcss <- function(y,
 
 
 
-  if (all(sym) && mode == 'directed') {
-    warning('Mismatch between arguments and data.\n',
-            ' mode = directed but y is symmetric for every perceiver.\n',
-            ' Maybe y should be treated as undirected?\n')
-  }
-
   if (!all(sym) && mode == 'undirected') {
     warning('Mismatch between arguments and data.\n',
             ' mode is undirected but y is not symmetric for every perceiver.\n',
@@ -267,6 +237,20 @@ QAPcss <- function(y,
   }
 
 
+  char <- c()
+  for (var in 1:nx) {
+    char <- c(char,!is.numeric(x[[var]][[1]]))
+  }
+
+
+  if (all(char) && nullhyp == 'qapspp') {
+    nullhyp <- 'qapy'
+    cat('All predictors are characters/factors.\n',
+        '"qapspp" is not implemented for this case.\n',
+        'Using "qapy" instead.\n',
+        'Maybe create separate dummy variables.\n\n')
+  }
+
 
   if (is.null(names(x))) {
     warning('x is not named. Consider naming it...')
@@ -278,8 +262,9 @@ QAPcss <- function(y,
   if (!large) {
     cssd <- make_css_data(y = y,
                           x = x ,
-                          g = g ,
+                          nets = 1,
                           RIO = RIO,
+                          rio = rio,
                           diag = diag,
                           mode = mode)
     pred <- cssd$pred
@@ -295,21 +280,37 @@ QAPcss <- function(y,
       }
       pred_list[[gr]] <- make_css_data(y = y[[gr]],
                                        x = xgr,
-                                       g = array(gr, dim = dim(y[[gr]])),
+                                       nets = gr,
                                        RIO = RIO[[gr]],
+                                       rio = rio,
                                        diag = diag,
                                        mode = mode)$pred
 
       valid_list[[gr]] <- make_css_data(y = y[[gr]],
-                                       x = xgr,
-                                       g = array(gr, dim = dim(y[[gr]])),
-                                       RIO = RIO[[gr]],
-                                       diag = diag,
-                                       mode = mode)$valid
+                                        x = xgr,
+                                        nets = gr,
+                                        RIO = RIO[[gr]],
+                                        rio = rio,
+                                        diag = diag,
+                                        mode = mode)$valid
     }
 
     pred <- Reduce(f = 'rbind', pred_list)
   }
+
+  if (family == 'multinom') {
+    pred$yv <- as.factor(pred$yv)
+
+    if (is.null(reference)) {
+      warning('No reference group provided for multinomial model.\n',
+              'Reference group will be set to first:',
+              levels(yv)[1])
+    } else {
+      pred$yv <- relevel(pred$yv, ref = reference)
+    }
+  }
+
+  rand <- any(c(rip, ris, rir, rio, rin))
 
 
   mod <- 'yv ~ 1'
@@ -320,8 +321,8 @@ QAPcss <- function(y,
 
   rand_int <- ''
 
-  if (rig) {
-    rand_int <- paste(rand_int,'+ (1|gv)')
+  if (rin) {
+    rand_int <- paste(rand_int,'+ (1|nv)')
   }
 
   if (rip) {
@@ -348,24 +349,9 @@ QAPcss <- function(y,
 
   mod <- paste(mod,rand_int)
 
-  if (family == 'multinom') {
-    pred$yv <- as.factor(pred$yv)
-
-    if (is.null(reference)) {
-      warning('No reference group provided for multinomial model.\n',
-              'Reference group will be set to first:',
-              levels(yv)[1])
-    } else {
-      pred$yv <- relevel(pred$yv, ref = reference)
-    }
-  }
-
-
   mod <- as.formula(mod)
 
   # baseline estimate
-
-  rand <- any(c(rig,ris,rir,rip,rio))
 
   if (is.null(comparison)) {
     fit <- fit_base(mod = mod,
@@ -394,20 +380,19 @@ QAPcss <- function(y,
 
 
 
-  clust <- makeCluster(ncores, outfile = error_file)
+  clust <- parallel::makeCluster(ncores, outfile = error_file)
 
 
   if (nullhyp == "qapy") {
-    res <- parLapply(cl = clust, 1:reps,
+    res <- parallel::parLapply(cl = clust, 1:reps,
                      fun = QAPcssPermEst,
                      y. = y,
                      x. = x,
-                     g. = g,
+                     groups. = groups,
                      mode. = mode,
                      diag. = diag,
                      rand. = rand,
                      family. = family,
-                     groups. = groups,
                      fit. = fit,
                      comp. = comparison,
                      RIO. = RIO,
@@ -433,8 +418,6 @@ QAPcss <- function(y,
         fit[[k]]$abs    <- Reduce(f = '+', resL[names(resL) == 'abs'],   0)/reps
       }
     }
-
-
 
 
   } else if (nullhyp == "qapspp") {
@@ -492,15 +475,13 @@ QAPcss <- function(y,
         xRm[valid] <- xR
       } else {
         xRm <- x
-        for (gr in unique(groups)) {
-          xRm[[xi]][[gr]] <- array(NA, dim = c(sum(groups == gr),
-                                               sum(groups == gr),
-                                               sum(groups == gr)))
-          xRm[[xi]][[gr]][valid_list[[gr]]] <- residuals(xm)[pred$gv == gr]
+        for (gr in 1:length(y)) {
+          xRm[[xi]][[gr]] <- array(NA, dim = dim(x[[xi]][[gr]]))
+          xRm[[xi]][[gr]][valid_list[[gr]]] <- residuals(xm)[pred$nv == gr]
         }
       }
 
-      res <- parLapply(cl = clust, 1:reps,
+      res <- parallel::parLapply(cl = clust, 1:reps,
                        fun = QAPcssPermEst,
                        y. = y,
                        x. = x,
@@ -511,7 +492,6 @@ QAPcss <- function(y,
                        diag. = diag,
                        rand. = rand,
                        groups. = groups,
-                       g. = g,
                        fit. = fit,
                        comp. = comparison,
                        family. = family,
@@ -553,7 +533,7 @@ QAPcss <- function(y,
 
   fit$nullhyp   <- nullhyp
   fit$family    <- family
-  fit$groups    <- unique(groups)
+  fit$groups    <- unique(unlist(groups))
   fit$nullhyp   <- nullhyp
   fit$diag      <- diag
   fit$mode      <- mode
@@ -564,7 +544,7 @@ QAPcss <- function(y,
   fit$random    <- c(sender = ris,
                      receiver = rir,
                      perceiver = rip,
-                     group = rig,
+                     nets = rin,
                      other = rio)
   fit$robust_se <- use_robust_errors
   if (family == 'multinom') {

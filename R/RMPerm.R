@@ -17,6 +17,7 @@ RMPerm <- function(m, groups = NULL, CSS = FALSE) {
   if (is.list(m)) {
     return(lapply(m, RMPerm, groups = groups))
   }
+
   if (length(dim(m)) == 2) {
     o <- unsplit(lapply(split(1:dim(m)[1],groups), FUN = sample),groups)
     p <- matrix(data = m[o, o], nrow = dim(m)[1], ncol = dim(m)[2])

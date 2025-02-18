@@ -2,8 +2,9 @@
 #'
 #' @param y array or list; see \code{QAPcss()}
 #' @param x array or list; see \code{QAPcss()}
-#' @param g character or numeric; see \code{QAPcss()}
+#' @param nets numeric; see \code{QAPcss()}
 #' @param RIO logical; see \code{QAPcss()}
+#' @param rio array or list; see \code{QAPcss()}
 #' @param diag logical; see \code{QAPcss()}
 #' @param mode character; see \code{QAPcss()}
 #'
@@ -11,8 +12,9 @@
 
 make_css_data <- function(y,
                           x,
-                          g,
+                          nets,
                           RIO,
+                          rio,
                           diag,
                           mode) {
   n <- dim(y)[1]
@@ -48,13 +50,11 @@ make_css_data <- function(y,
   yv <- array_to_vector(y,
                         mode. = mode,
                         diag. = diag)[vv]
-  gv <- array_to_vector(g,
-                        mode. = mode,
-                        diag. = diag)[vv]
+
 
 
   pred <- data.frame(yv = yv,
-                     gv = gv)
+                     nv = nets)
 
 
   for (var in c(1:nx)) {
@@ -82,7 +82,7 @@ make_css_data <- function(y,
                                        mode. = mode,
                                        diag. = diag)[vv])
 
-  if (!is.null(RIO)) {
+  if (rio) {
     if (!is.list(RIO)) {
       pred$ov <- as.factor(array_to_vector(RIO,
                                            mode. = mode,

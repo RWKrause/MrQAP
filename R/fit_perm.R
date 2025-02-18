@@ -32,7 +32,7 @@ fit_perm <- function(family.,
     predx$yv <- as.factor(predx$yv)
     predx$yv <- relevel(predx$yv, ref = ref)
 
-    pm   <- multinom(mod, data = predx, model = TRUE)
+    pm   <- nnet::multinom(mod, data = predx, model = TRUE)
     pres <- rbind(coefficients(pm),
                   coefficients(pm) /
                     summary(pm)$standard.errors )
@@ -64,10 +64,10 @@ fit_perm <- function(family.,
       }
     } else {
       if (family. == 'gaussian') {
-        pm <- lmer(mod, data = predx)
+        pm <- lme4::lmer(mod, data = predx)
 
       } else {
-        pm <- glmer(mod, data = predx, family = family.)
+        pm <- lme4::glmer(mod, data = predx, family = family.)
 
       }
       if (use_robust_errors) {

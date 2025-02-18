@@ -25,6 +25,10 @@ print.QAPCSS <- function(x,
     } else {
       cat("\nGeneralized Linear Mixed Network Model for CSS fit by REML\n\n")
     }
+  } else {
+    cat("\nMultinominal Choice Network Model for CSS\n\n")
+    cat('\nThe reference group was', format(paste0(x$reference,'.')))
+  }
 
     if (!is.null(x$groups)) {
       cat("\nPermutations were performed within groups only.")
@@ -39,25 +43,25 @@ print.QAPCSS <- function(x,
           format(x$reps),'permutations.')
     }
 
-    if (x$robust_se) {
-      cat("\nT-values are based on robust standard errors.")
-    }
+  if (x$robust_se) {
+    cat("\nT-values are based on robust standard errors.")
+  }
 
-    if (x$diag) {
-      cat("\nDiagonal values (loops) were used in the estimation.",
-          "\n  Results may be biased because of that.")
-    } else {
-      cat("\nDiagonal values (loops) were ignored.")
-    }
+  if (x$diag) {
+    cat("\nDiagonal values (loops) were used in the estimation.",
+        "\n  Results may be biased because of that.")
+  } else {
+    cat("\nDiagonal values (loops) were ignored.")
+  }
 
-    cat('\nThe outcome was treated as', format(paste0(x$mode,'.')))
+  cat('\nThe outcome was treated as', format(paste0(x$mode,'.')))
 
+  if (x$family != 'multinom') {
     if (is.null(x$comp)) {
       glm_tab(x,
               print_b = print_b,
               print_random = print_random,
               nullhyp = x$nullhyp,
-              groups = x$groups,
               comp = x$comp)
     } else {
       nn <- names(x)[!(names(x) %in% c("nullhyp",
@@ -74,42 +78,13 @@ print.QAPCSS <- function(x,
                 print_b = print_b,
                 print_random = print_random,
                 nullhyp = x$nullhyp,
-                groups = x$groups,
                 comp = x$comp[[mod]])
       }
     }
 
   } else {
-    cat("\nMultinominal Choice Network Model for CSS\n\n")
-
-
-    if (!is.null(x$groups)) {
-      cat("\nPermutations were performed within groups only.")
-    }
-
-    if (x$nullhyp == 'qapy') {
-      cat("\nThe outcome array Y was permuted",format(x$reps),'times.')
-    }
-    if (x$nullhyp == 'qapspp') {
-      cat("\nSignificance was estimated using Dekker's")
-      cat("\n  'semi-partialling plus' procedure with",
-          format(x$reps),'permutations.')
-    }
-
-    if (x$diag) {
-      cat("\nDiagonal values (loops) were used in the estimation.",
-          "\n  Results may be biased because of that.")
-    } else {
-      cat("\nDiagonal values (loops) were ignored.")
-    }
-
-    cat('\nThe outcome was treated as', format(paste0(x$mode,'.')))
-
-    cat('\nThe reference group was', format(paste0(x$reference,'.')))
-
 
     cat("\n\nCoefficients:\n\n")
-
     for (option in 1:nrow(x$coefficients)) {
       cat(format(paste0('-- ',rownames(x$coefficients)[option],'\n')))
 
@@ -137,5 +112,4 @@ print.QAPCSS <- function(x,
     cat("\nBIC:", format(BIC(x$simple_fit)))
     cat("\n")
   }
-
 }

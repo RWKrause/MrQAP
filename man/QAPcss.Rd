@@ -18,7 +18,7 @@ QAPcss(
   reference = NULL,
   comparison = NULL,
   use_robust_errors = FALSE,
-  random_intercept_group = FALSE,
+  random_intercept_nets = FALSE,
   random_intercept_sender = FALSE,
   random_intercept_receiver = FALSE,
   random_intercept_perceiver = FALSE,
@@ -45,7 +45,7 @@ QAPcss(
 
 \item{family}{character; While there is controversy around using anything but a linear model in MRQAP (family = 'gaussian'), \code{QAPglm()} supports all natural \code{R} model families (see \code{?family}). Use \code{family = 'multinom'} if a multinomial choice model is requested. Internally, estimation will be done with \code{multinom()} from the \code{nnet} package.}
 
-\item{groups}{vector; It might be that a CSS is composed of qualitatively different groups. In that case, it might be desirable to only permute within groups. \code{groups} is a \code{vector} of \code{length = nrow(y)}, indicating the grouping of the nodes. (\code{groups} together with a \code{list} of \code{y} is not yet implemented but will be added soon.)}
+\item{groups}{vector; It might be that a CSS is composed of qualitatively different groups. In that case, it might be desirable to only permute within groups. \code{groups} is a \code{vector} of \code{length = nrow(y)}, indicating the grouping of the nodes. If \code{y} is a \code{list} then \code{groups} needs to be a \code{list} of vectors.}
 
 \item{reference}{numeric or character; If \code{family = 'multinom'}, \code{reference} can be used to specify the reference group for the multinomial regression.}
 
@@ -55,7 +55,7 @@ QAPcss(
 
 \item{error_file}{character; Not meant for the end-user. Passed to \code{makeCluster(ncores, outfile = error_file)}. See \code{?parallel::makeCluster}. Helpful if you want to debug the code.}
 
-\item{random_intercept_...}{logical; Multiple arguments exist to specify random intercepts. instead of relying on \code{glm()} estimation will use the \code{lmer()} or \code{glmer()} from the \code{lme4} package to obtain parameter estimates and t-values for the permutation assessment. \code{random_intercept_group} includes a random intercept for each group in groups. \code{random_intercept_sender}, \code{random_intercept_receiver}, and \code{random_intercept_perceiver} add intercepts for each node on the corresponding dimension. Additionally, there is \code{random_intercept_other}. This argument expects an input corresponding to every element in \code{y} (either a similarly sized \code{matrix} or a \code{list} of \code{array}s corresponding to each element in \code{y} when \code{y} is a \code{list}). This \code{array} (or \code{list} thereof) will be used to create cell-specifc random intercepts. This might be useful if some relationships are qualitatively different than others but all are expected to follow the same pattern (e.g., for some cells differences in (intercept and) residual variance are expected). You can submit \code{list}s of \code{list}s of matrices if you want multiple random intercept variables added}
+\item{random_intercept_...}{logical; Multiple arguments exist to specify random intercepts. instead of relying on \code{glm()} estimation will use the \code{lmer()} or \code{glmer()} from the \code{lme4} package to obtain parameter estimates and t-values for the permutation assessment. \code{random_intercept_nets} includes a random intercept for each separate network in \code{y} when \code{y} is a \code{list}. \code{random_intercept_sender}, \code{random_intercept_receiver}, and \code{random_intercept_perceiver} add intercepts for each node on the corresponding dimension. Additionally, there is \code{random_intercept_other}. This argument expects an input corresponding to every element in \code{y} (either a similarly sized \code{matrix} or a \code{list} of \code{array}s corresponding to each element in \code{y} when \code{y} is a \code{list}). This \code{array} (or \code{list} thereof) will be used to create cell-specifc random intercepts. This might be useful if some relationships are qualitatively different than others but all are expected to follow the same pattern (e.g., for some cells differences in (intercept and) residual variance are expected). You can submit \code{list}s of \code{list}s of matrices if you want multiple random intercept variables added}
 }
 \value{
 an object of \code{class} \code{QAPRegression} when \code{family = 'gaussian'} or \code{QAPGLM} otherwise. It contains the basic input parameters and estimated parameters and p-values.

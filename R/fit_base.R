@@ -25,7 +25,7 @@ fit_base <- function(mod,
   fit <- list()
   if (!rand) {
     if (family == 'multinom') {
-      base_model       <- multinom(mod, data = pred)
+      base_model       <- nnet::multinom(mod, data = pred)
       fit$coefficients <- coefficients(base_model)
       fit$t  <- coefficients(base_model)/summary(base_model)$standard.errors
     } else {
@@ -47,9 +47,9 @@ fit_base <- function(mod,
     }
   } else {
     if (family == 'gaussian') {
-      base_model <- lmer(mod, data = pred)
+      base_model <- lme4::lmer(mod, data = pred)
     } else {
-      base_model  <- glmer(mod, data = pred, family = family,
+      base_model  <- lme4::glmer(mod, data = pred, family = family,
                            control = glmerControl(calc.derivs = FALSE,
                                                   optimizer = "bobyqa"),
                            nAGQ = 0)

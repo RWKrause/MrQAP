@@ -83,12 +83,7 @@ print.QAPRegression <- function(x,
                    nrow = length(x$random.intercepts),
                                  ncol = 1)
     colnames(cmat) <- c("Random Intercepts:")
-    if (length(unique(x$groups)) != length(x$random.intercepts)) {
-      cat('Some random intercepts were not estimated.\n',
-          'Group specific intercepts will not be named.\n\n')
-    } else {
-      rownames(cmat) <- as.character(x$groups[order(x$groups)])
-    }
+
     print.table(cmat)
     cat('\n--------------\n')
   }
