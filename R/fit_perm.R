@@ -22,10 +22,11 @@ fit_perm <- function(family.,
                      mod,
                      fitx,
                      rand,
+                     nx.,
                      use_robust_errors) {
 
   if (use_robust_errors) {
-    xv <- as.matrix(pred[,c(3:(2 + nx))])
+    xv <- as.matrix(predx[,(ncol(predx) - nx. + 1):ncol(predx)])
   }
 
   if (family. == 'multinom') {
