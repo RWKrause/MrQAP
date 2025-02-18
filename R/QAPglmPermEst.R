@@ -81,7 +81,7 @@ QAPglmPermEst <- function(i,
     pred <- Reduce(f = 'rbind', pred_list)
   }
 
-  xv. <- as.matrix(pred[,6:(5 + nx)])
+  xv. <- as.matrix(pred[,(ncol(pred) - nx + 1):ncol(pred)])
 
   if (!rand.) {
     pm  <- glm(mod., data = pred, family = family.)
