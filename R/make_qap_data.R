@@ -60,10 +60,6 @@ make_qap_data <- function(y,
                      rv = as.vector(rv)[vv])
   pred$location <- as.vector(matrix(1:n**2,n,n))[vv]
 
-  for (var in c(1:nx)) {
-    pred[[names(x)[var]]] <- as.vector(x[[var]])[vv]
-  }
-
   if (!is.null(RIO)) {
     if (!is.list(RIO)) {
       pred$ov <- as.factor(as.vector(RIO)[vv])
@@ -72,6 +68,10 @@ make_qap_data <- function(y,
         pred[[paste0('ov',i)]] <- as.factor(as.vector(RIO[[i]])[vv])
       }
     }
+  }
+
+  for (var in c(1:nx)) {
+    pred[[names(x)[var]]] <- as.vector(x[[var]])[vv]
   }
   return(pred)
 }
