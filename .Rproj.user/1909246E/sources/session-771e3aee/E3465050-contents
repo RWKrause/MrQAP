@@ -420,8 +420,6 @@ QAPcss <- function(y,
     }
 
 
-
-
   } else if (nullhyp == "qapspp") {
 
     if (family != 'multinom' && is.null(comparison)) {
