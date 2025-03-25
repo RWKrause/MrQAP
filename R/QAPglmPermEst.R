@@ -100,7 +100,7 @@ QAPglmPermEst <- function(i,
     } else {
       if (family == 'binomial') {
         pm <- gmm(logit_moments,
-                  x = list(y = pred$y,
+                  x = list(y = pred$yv,
                            x = pred[,names(x)]),
                   t0 = rnorm(nx + 1),
                   wmatrix = "optimal",
@@ -113,7 +113,7 @@ QAPglmPermEst <- function(i,
       }
       if (family == 'poisson') {
         pm <- gmm(poisson_moments,
-                          x = list(y = pred$y,
+                          x = list(y = pred$yv,
                                    x = pred[,names(x)]),
                           t0 = rnorm(nx + 1),
                           wmatrix = "optimal",

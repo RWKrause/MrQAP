@@ -10,6 +10,8 @@ logit_moments(theta, data)
 \item{theta}{numeric; Vetor of parameter values, see \code{?gmm::gmm}.}
 
 \item{data}{matrix; Data matrix for all X, see \code{?gmm::gmm}.}
+
+\item{gmmo}{gmm; an object of class gmm.}
 }
 \value{
 Returns moment the moment conditions

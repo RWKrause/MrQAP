@@ -199,7 +199,7 @@ QAPglm <- function(y,
       } else {
         if (family == 'binomial') {
           base_model <- gmm(logit_moments,
-                            x = list(y = pred$y,
+                            x = list(y = pred$yv,
                                      x = pred[,names(x)]),
                             t0 = rnorm(nx + 1),
                             wmatrix = "optimal",
@@ -212,7 +212,7 @@ QAPglm <- function(y,
         }
         if (family == 'poisson') {
           base_model <- gmm(poisson_moments,
-                            x = list(y = pred$y,
+                            x = list(y = pred$yv,
                                      x = pred[,names(x)]),
                             t0 = rnorm(nx + 1),
                             wmatrix = "optimal",

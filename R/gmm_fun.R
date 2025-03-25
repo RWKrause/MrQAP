@@ -2,7 +2,7 @@
 #'
 #' @param theta numeric; Vetor of parameter values, see \code{?gmm::gmm}.
 #' @param data matrix; Data matrix for all X, see \code{?gmm::gmm}.
-#'
+#' @param gmmo gmm; an object of class gmm.
 #' @returns Returns moment the moment conditions
 #'
 
