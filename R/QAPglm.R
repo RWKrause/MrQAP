@@ -2,7 +2,7 @@
 #'
 #' @param y matrix or list; \code{y} needs to be a square \code{matrix}. Alternatively, \code{y} can be a \code{list} of matrices, if there are multiple networks that should be predicted at the same time.
 #'
-#' @param x matrix or list; needs to be a square \code{matrix} with the same dimensions as \code{y} and is the predictor for \code{y}. In most cases you have more than one predictor. Then \code{x} needs to be a \code{list} of matrices of the same dimensionality as \code{y}. If \code{y} is a \code{list}, then \code{x} should be a \code{list} of \code{list}s. Each predictor variable should be its own \code{list}, with each entrance being a \code{matrix} for each of the separate matrices in \code{y}. These \code{list}s are then combined into one \code{list} of \code{list}s (e.g., \code{x[[1]][[2]]} is the predictor array of the first predictor for the second group). It is highly recommended that \code{x} is named. The names will be carried to the output.
+#' @param x matrix or list; needs to be a square \code{matrix} with the same dimensions as \code{y} and is the predictor for \code{y}. In most cases you have more than one predictor. Then \code{x} needs to be a \code{list} of matrices of the same dimensionality as \code{y}. If \code{y} is a \code{list}, then \code{x} should be a \code{list} of \code{list}s. Each predictor variable should be its own \code{list}, with each entrance being a \code{matrix} for each of the separate matrices in \code{y}. These \code{list}s are then combined into one \code{list} of \code{list}s (e.g., \code{x[[1]][[2]]} is the predictor array of the first predictor for the second group). It is highly recommended that \code{x} is named. The names will be carried to the output. Do not name a variable one of the following names: "location", "yv", "nv", "sv", or "rv".
 #'
 #' @param family character; While there is controversy around using anything but a linear model in MRQAP (family = 'gaussian'), \code{QAPglm()} supports all natural \code{R} model families (see \code{?family}).
 #'
@@ -196,44 +196,42 @@ QAPglm <- function(y,
     } else {
       if (estimator == 'standard') {
         base_model <- glm(mod, data = pred, family = family)
+        resid <- residuals(base_model)
       } else {
         if (family == 'binomial') {
           base_model <- gmm(logit_moments,
                             x = list(y = pred$yv,
-                                     x = pred[,names(x)]),
+                                     x = cbind(1,as.matrix(pred[,names(x)]))),
                             t0 = rnorm(nx + 1),
                             wmatrix = "optimal",
                             vcov = "MDS",
                             optfct = "nlminb",
                             control = list(eval.max = 10000))
-
           resid <- logit_resid(base_model)
 
-        }
-        if (family == 'poisson') {
+        } else if (family == 'poisson') {
           base_model <- gmm(poisson_moments,
                             x = list(y = pred$yv,
-                                     x = pred[,names(x)]),
+                                     x = cbind(1,as.matrix(pred[,names(x)]))),
                             t0 = rnorm(nx + 1),
                             wmatrix = "optimal",
                             vcov = "MDS",
                             optfct = "nlminb",
                             control = list(eval.max = 10000))
-
           resid <- poisson_resid(base_model)
         }
       }
     }
-    if (estimator == 'standard') {
-      resid <- residuals(base_model)
-    }
 
     fit$coefficients  <- base_model$coefficients
+
     if (use_robust_errors) {
       fit$t <- fit$coefficients / HC3(xv,resid)
     } else {
       fit$t <- summary(base_model)$coefficients[,3]
     }
+    names(fit$t) <- c('Intercept',names(x))
+    names(fit$coefficients) <- c('Intercept',names(x))
   } else {
     if (family == 'gaussian') {
       base_model <- lme4::lmer(mod, data = pred)
@@ -366,6 +364,7 @@ QAPglm <- function(y,
   fit$groups <- unique(unlist(groups))
   fit$simple_fit <- base_model
   fit$robust_se <- use_robust_errors
+  fit$estimator <- estimator
 
   if (family == 'gaussian') {
     class(fit) <- 'QAPRegression'

@@ -84,52 +84,55 @@ QAPglmPermEst <- function(i,
     pred <- Reduce(f = 'rbind', pred_list)
   }
 
-  xv. <- as.matrix(pred[,(ncol(pred) - nx + 1):ncol(pred)])
+  xv. <- as.matrix(pred[,names(xRm.)])
+
 
   if (!rand.) {
     if (estimator. == 'standard') {
       pm  <- glm(mod., data = pred, family = family.)
       if (use_robust_errors.) {
         pres <- rbind(pm$coefficients,
-                      pm$coefficients / HC3(xv.,
-                                            residuals(pm)))
+                      pm$coefficients / HC3(xv., residuals(pm)))
       } else {
         pres <- rbind(pm$coefficients,
                       summary(pm)$coefficients[,3])
       }
     } else {
-      if (family == 'binomial') {
+      if (family. == 'binomial') {
         pm <- gmm(logit_moments,
                   x = list(y = pred$yv,
-                           x = pred[,names(x)]),
+                           x = cbind(1,as.matrix(pred[,names(xRm.)]))),
                   t0 = rnorm(nx + 1),
                   wmatrix = "optimal",
                   vcov = "MDS",
                   optfct = "nlminb",
                   control = list(eval.max = 10000))
+        resid <- logit_resid(pm)
 
-        resid <- logit_resid(base_model)
-
-      }
-      if (family == 'poisson') {
+      } else if (family. == 'poisson') {
         pm <- gmm(poisson_moments,
-                          x = list(y = pred$yv,
-                                   x = pred[,names(x)]),
-                          t0 = rnorm(nx + 1),
-                          wmatrix = "optimal",
-                          vcov = "MDS",
-                          optfct = "nlminb",
-                          control = list(eval.max = 10000))
+                  x = list(y = pred$yv,
+                           x = cbind(1,as.matrix(pred[,names(xRm.)]))),
+                  t0 = rnorm(nx + 1),
+                  wmatrix = "optimal",
+                  vcov = "MDS",
+                  optfct = "nlminb",
+                  control = list(eval.max = 10000))
+        print(2)
 
-        resid <- poisson_resid(base_model)
+        resid <- poisson_resid(pm)
+        print(3)
+
       }
+
       if (use_robust_errors.) {
         pres <- rbind(pm$coefficients,
-                      pm$coefficients / HC3(xv.,resid))
+                      pm$coefficients / HC3(xv., resid))
       } else {
         pres <- rbind(pm$coefficients,
                       summary(pm)$coefficients[,3])
       }
+      colnames(pres) <- c('Intercept',names(xRm.))
     }
 
   } else {
