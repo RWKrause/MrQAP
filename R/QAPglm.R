@@ -12,7 +12,7 @@
 #'
 #' @param nullhyp character; Currently only two baseline models are available \code{nullhyp = 'qapy'} and \code{nullhyp = 'qapspp'}. In general, 'qapspp' is the recommended option (see Dekker, Krackhardt, & Snijders, 2007). However, it costs more time and if all \code{x} are uncorrelated with each other both 'qapy' and 'qapspp' will give the same results.
 #'
-#'@param estimator character; Choose estimator for the model family. Default is \code{estimator = 'standard'} which will either be least-squares or MLE. For \code{family = 'binomial'} or \code{family = 'poisson'}, GMM is also available; \code{estimator = 'gmm}.
+#'@param estimator character; Choose estimator for the model family. Default is \code{estimator = 'standard'} which will either be least-squares or MLE. For \code{family = 'binomial'} or \code{family = 'poisson'}, GMM is also available; \code{estimator = 'gmm'}. Currently gmm cannot be combined with random intercepts.
 #'
 #' @param reps integer; indicates how many permutations should be performed. Default is 1000 but larger numbers are highly recommended.
 #'
@@ -36,6 +36,7 @@
 #' @export
 #' @import parallel
 #' @import lme4
+#' @import gmm
 
 
 QAPglm <- function(y,
@@ -193,9 +194,40 @@ QAPglm <- function(y,
       fit$r.squared     <- summary(base_model)$r.squared
       fit$adj.r.squared <- summary(base_model)$adj.r.squared
     } else {
-      base_model      <- glm(mod, data = pred, family = family)
+      if (estimator == 'standard') {
+        base_model <- glm(mod, data = pred, family = family)
+      } else {
+        if (family == 'binomial') {
+          base_model <- gmm(logit_moments,
+                            x = list(y = pred$y,
+                                     x = pred[,names(x)]),
+                            t0 = rnorm(nx + 1),
+                            wmatrix = "optimal",
+                            vcov = "MDS",
+                            optfct = "nlminb",
+                            control = list(eval.max = 10000))
+
+          resid <- logit_resid(base_model)
+
+        }
+        if (family == 'poisson') {
+          base_model <- gmm(poisson_moments,
+                            x = list(y = pred$y,
+                                     x = pred[,names(x)]),
+                            t0 = rnorm(nx + 1),
+                            wmatrix = "optimal",
+                            vcov = "MDS",
+                            optfct = "nlminb",
+                            control = list(eval.max = 10000))
+
+          resid <- poisson_resid(base_model)
+        }
+      }
     }
-    resid <- residuals(base_model)
+    if (estimator == 'standard') {
+      resid <- residuals(base_model)
+    }
+
     fit$coefficients  <- base_model$coefficients
     if (use_robust_errors) {
       fit$t <- fit$coefficients / HC3(xv,resid)
@@ -234,6 +266,7 @@ QAPglm <- function(y,
                                groups. = groups,
                                fit. = fit,
                                family. = family,
+                               estimator. = estimator,
                                RIO. = RIO,
                                use_robust_errors. = use_robust_errors,
                                same_x_4_all_y. = same_x_4_all_y,
@@ -286,6 +319,7 @@ QAPglm <- function(y,
                                  diag. = diag,
                                  mod. = mod,
                                  family. = family,
+                                 estimator. = estimator,
                                  groups. = groups,
                                  fit. = fit,
                                  xRm. = xRm,

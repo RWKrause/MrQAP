@@ -6,6 +6,7 @@
 #' @param diag. logical; same as \code{diag} in \code{QAPglm()}
 #' @param mod. formula; model to be estimated.
 #' @param family. character; same as \code{family} in \code{QAPglm()}
+#' @param estimator character; same as \code{estimator} in \code{QAPglm()}
 #' @param groups. vector; same as \code{groups} in \code{QAPglm()}
 #' @param fit. glm, lm, lmer, or glmer; Estimate on unpermuted data.
 #' @param RIO. matrix or list; same as \code{random_intercept_other} in \code{QAPglm()}
@@ -17,21 +18,23 @@
 #'
 #' @returns Results for one permutation.
 #' @import lme4
+#' @import gmm
 
 QAPglmPermEst <- function(i,
-                           y.,
-                           mode.,
-                           diag.,
-                           mod.,
-                           family.,
-                           groups.,
-                           fit.,
-                           RIO.,
-                           use_robust_errors.,
-                           xi. = NULL,
-                           xRm. = NULL,
-                           same_x_4_all_y.,
-                           rand.) {
+                          y.,
+                          mode.,
+                          diag.,
+                          mod.,
+                          family.,
+                          estimator.,
+                          groups.,
+                          fit.,
+                          RIO.,
+                          use_robust_errors.,
+                          xi. = NULL,
+                          xRm. = NULL,
+                          same_x_4_all_y.,
+                          rand.) {
   nx <- length(xRm.)
 
   if (!is.list(y.)) {
@@ -84,15 +87,51 @@ QAPglmPermEst <- function(i,
   xv. <- as.matrix(pred[,(ncol(pred) - nx + 1):ncol(pred)])
 
   if (!rand.) {
-    pm  <- glm(mod., data = pred, family = family.)
-    if (use_robust_errors.) {
-      pres <- rbind(pm$coefficients,
-                    pm$coefficients / HC3(xv.,
-                                          residuals(pm)))
+    if (estimator. == 'standard') {
+      pm  <- glm(mod., data = pred, family = family.)
+      if (use_robust_errors.) {
+        pres <- rbind(pm$coefficients,
+                      pm$coefficients / HC3(xv.,
+                                            residuals(pm)))
+      } else {
+        pres <- rbind(pm$coefficients,
+                      summary(pm)$coefficients[,3])
+      }
     } else {
-      pres <- rbind(pm$coefficients,
-                    summary(pm)$coefficients[,3])
+      if (family == 'binomial') {
+        pm <- gmm(logit_moments,
+                  x = list(y = pred$y,
+                           x = pred[,names(x)]),
+                  t0 = rnorm(nx + 1),
+                  wmatrix = "optimal",
+                  vcov = "MDS",
+                  optfct = "nlminb",
+                  control = list(eval.max = 10000))
+
+        resid <- logit_resid(base_model)
+
+      }
+      if (family == 'poisson') {
+        pm <- gmm(poisson_moments,
+                          x = list(y = pred$y,
+                                   x = pred[,names(x)]),
+                          t0 = rnorm(nx + 1),
+                          wmatrix = "optimal",
+                          vcov = "MDS",
+                          optfct = "nlminb",
+                          control = list(eval.max = 10000))
+
+        resid <- poisson_resid(base_model)
+      }
+      if (use_robust_errors.) {
+        pres <- rbind(pm$coefficients,
+                      pm$coefficients / HC3(xv.,resid))
+      } else {
+        pres <- rbind(pm$coefficients,
+                      summary(pm)$coefficients[,3])
+      }
     }
+
   } else {
     if (family. == 'gaussian') {
       pm <- lme4::lmer(mod., data = pred)

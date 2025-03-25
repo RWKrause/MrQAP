@@ -11,6 +11,7 @@ QAPglm(
   mode = "directed",
   diag = FALSE,
   nullhyp = "qapspp",
+  estimator = "standard",
   reps = 1000,
   seed = NULL,
   groups = NULL,
@@ -36,6 +37,8 @@ QAPglm(
 \item{diag}{logical; If \code{TRUE} diagonal values will also be included in the calculation. This is set to be \code{FALSE} by default and can potentially bias results when \code{TRUE}. (If \code{TRUE} is meaningful, it is recommended to run the model with and without \code{diag = TRUE} to see how relevant the diagonal is.)}
 
 \item{nullhyp}{character; Currently only two baseline models are available \code{nullhyp = 'qapy'} and \code{nullhyp = 'qapspp'}. In general, 'qapspp' is the recommended option (see Dekker, Krackhardt, & Snijders, 2007). However, it costs more time and if all \code{x} are uncorrelated with each other both 'qapy' and 'qapspp' will give the same results.}
+
+\item{estimator}{character; Choose estimator for the model family. Default is \code{estimator = 'standard'} which will either be least-squares or MLE. For \code{family = 'binomial'} or \code{family = 'poisson'}, GMM is also available; \code{estimator = 'gmm'}. Currently gmm cannot be combined with random intercepts.}
 
 \item{reps}{integer; indicates how many permutations should be performed. Default is 1000 but larger numbers are highly recommended.}
 

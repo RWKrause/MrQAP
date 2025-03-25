@@ -11,6 +11,7 @@ QAPglmPermEst(
   diag.,
   mod.,
   family.,
+  estimator.,
   groups.,
   fit.,
   RIO.,
@@ -49,6 +50,8 @@ QAPglmPermEst(
 \item{same_x_4_all_y.}{matrix or list; same as \code{y} in \code{QAPglm()}}
 
 \item{rand.}{logical; TRUE if any random intercepts are requested}
+
+\item{estimator}{character; same as \code{estimator} in \code{QAPglm()}}
 }
 \value{
 Results for one permutation.
