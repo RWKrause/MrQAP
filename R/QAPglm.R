@@ -12,6 +12,8 @@
 #'
 #' @param nullhyp character; Currently only two baseline models are available \code{nullhyp = 'qapy'} and \code{nullhyp = 'qapspp'}. In general, 'qapspp' is the recommended option (see Dekker, Krackhardt, & Snijders, 2007). However, it costs more time and if all \code{x} are uncorrelated with each other both 'qapy' and 'qapspp' will give the same results.
 #'
+#'@param estimator character; Choose estimator for the model family. Default is \code{estimator = 'standard'} which will either be least-squares or MLE. For \code{family = 'binomial'} or \code{family = 'poisson'}, GMM is also available; \code{estimator = 'gmm}.
+#'
 #' @param reps integer; indicates how many permutations should be performed. Default is 1000 but larger numbers are highly recommended.
 #'
 #' @param seed integer; Given the random nature of the permutation, every call of \code{QAPglm()} will lead to different responses that will asymptotically converge with larger values for \code{reps}. To get consistent answers, one should specify a random number seed with the seed argument (e.g., \code{seed = 1402}).
@@ -37,22 +39,23 @@
 
 
 QAPglm <- function(y,
-                    x,
-                    family = 'gaussian',
-                    mode = "directed",
-                    diag = FALSE,
-                    nullhyp = "qapspp",
-                    reps = 1000,
-                    seed = NULL,
-                    groups = NULL,
-                    ncores = NULL,
-                    same_x_4_all_y = FALSE,
-                    random_intercept_nets   = FALSE,
-                    random_intercept_sender   = FALSE,
-                    random_intercept_receiver = FALSE,
-                    random_intercept_other = NULL,
-                    use_robust_errors = FALSE,
-                    error_file = NULL) {
+                   x,
+                   family = 'gaussian',
+                   mode = 'directed',
+                   diag = FALSE,
+                   nullhyp = 'qapspp',
+                   estimator = 'standard',
+                   reps = 1000,
+                   seed = NULL,
+                   groups = NULL,
+                   ncores = NULL,
+                   same_x_4_all_y = FALSE,
+                   random_intercept_nets   = FALSE,
+                   random_intercept_sender   = FALSE,
+                   random_intercept_receiver = FALSE,
+                   random_intercept_other = NULL,
+                   use_robust_errors = FALSE,
+                   error_file = NULL) {
 
   if (!is.list(y)) {
     large <- FALSE
@@ -294,14 +297,14 @@ QAPglm <- function(y,
       resL <- unlist(res, recursive = FALSE)
 
       fit$lower[,xi]  <- Reduce(f = '+',
-                                    resL[names(resL) == 'lower'],
-                                    0)/reps
+                                resL[names(resL) == 'lower'],
+                                0)/reps
       fit$larger[,xi] <- Reduce(f = '+',
-                                    resL[names(resL) == 'larger'],
-                                    0)/reps
+                                resL[names(resL) == 'larger'],
+                                0)/reps
       fit$abs[,xi]    <- Reduce(f = '+',
-                                    resL[names(resL) == 'abs'],
-                                    0)/reps
+                                resL[names(resL) == 'abs'],
+                                0)/reps
     }
   }
 
