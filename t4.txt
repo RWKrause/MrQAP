@@ -1,5 +1,0 @@
-starting worker pid=25520 on localhost:11226 at 18:00:33.985
-starting worker pid=23504 on localhost:11226 at 18:00:34.111
-starting worker pid=20764 on localhost:11226 at 18:00:34.234
-starting worker pid=29200 on localhost:11226 at 18:00:34.357
-starting worker pid=13920 on localhost:11226 at 18:00:34.480
