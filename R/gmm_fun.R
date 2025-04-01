@@ -35,7 +35,7 @@ logit_moments <- function(theta, data) {
 
 #' Getting residuals for gmm logit
 #'
-#' @param gmmo; gmm() output
+#' @param gmmo gmm() output
 #'
 #' @returns residuals of the gmm()
 logit_resid <- function(gmmo) {
@@ -48,7 +48,7 @@ logit_resid <- function(gmmo) {
 
 #' Getting residuals for gmm poisson
 #'
-#' @param gmmo; gmm() output
+#' @param gmmo gmm() output
 #'
 #' @returns residuals of the gmm()
 poisson_resid <- function(gmmo) {

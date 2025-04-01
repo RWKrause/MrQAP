@@ -4,7 +4,7 @@
 \alias{poisson_moments}
 \title{Auxiliary functions for GMM estimation - Poisson}
 \usage{
-poisson_moments(theta, x)
+poisson_moments(theta, data)
 }
 \arguments{
 \item{theta}{numeric; Vetor of parameter values, see \code{?gmm::gmm}.}

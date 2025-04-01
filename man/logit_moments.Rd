@@ -4,7 +4,7 @@
 \alias{logit_moments}
 \title{Auxiliary functions for GMM estimation - Logistic}
 \usage{
-logit_moments(theta, x)
+logit_moments(theta, data)
 }
 \arguments{
 \item{theta}{numeric; Vetor of parameter values, see \code{?gmm::gmm}.}

@@ -118,11 +118,7 @@ QAPglmPermEst <- function(i,
                   vcov = "MDS",
                   optfct = "nlminb",
                   control = list(eval.max = 10000))
-        print(2)
-
         resid <- poisson_resid(pm)
-        print(3)
-
       }
 
       if (use_robust_errors.) {

@@ -7,7 +7,7 @@
 poisson_resid(gmmo)
 }
 \arguments{
-\item{gmmo;}{gmm() output}
+\item{gmmo}{gmm() output}
 }
 \value{
 residuals of the gmm()
