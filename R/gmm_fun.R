@@ -7,8 +7,8 @@
 #'
 
 poisson_moments <- function(theta, data) {
-  Y <- data$y
-  X <- data$x
+  Y <- as.numeric(data$y)
+  X <- data.matrix(data$x)
   lambda_hat <- exp(X %*% theta)
   residuals <- as.vector(Y - lambda_hat)
   g <- residuals * X

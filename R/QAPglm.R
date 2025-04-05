@@ -12,7 +12,7 @@
 #'
 #' @param nullhyp character; Currently only two baseline models are available \code{nullhyp = 'qapy'} and \code{nullhyp = 'qapspp'}. In general, 'qapspp' is the recommended option (see Dekker, Krackhardt, & Snijders, 2007). However, it costs more time and if all \code{x} are uncorrelated with each other both 'qapy' and 'qapspp' will give the same results.
 #'
-#'@param estimator character; Choose estimator for the model family. Default is \code{estimator = 'standard'} which will either be least-squares or MLE. For \code{family = 'binomial'} or \code{family = 'poisson'}, GMM is also available; \code{estimator = 'gmm'}. Currently gmm cannot be combined with random intercepts.
+#'@param estimator character; Choose estimator for the model family. Default is \code{estimator = 'standard'} which will either be least-squares or MLE. For \code{family = 'binomial'}, Generalized Methods of Moments is also available; \code{estimator = 'gmm'}. Currently gmm cannot be combined with random intercepts.
 #'
 #' @param reps integer; indicates how many permutations should be performed. Default is 1000 but larger numbers are highly recommended.
 #'

@@ -110,6 +110,7 @@ QAPglmPermEst <- function(i,
         resid <- logit_resid(pm)
 
       } else if (family. == 'poisson') {
+        print(head(pred))
         pm <- gmm(poisson_moments,
                   x = list(y = pred$yv,
                            x = cbind(1,as.matrix(pred[,names(xRm.)]))),
@@ -118,7 +119,11 @@ QAPglmPermEst <- function(i,
                   vcov = "MDS",
                   optfct = "nlminb",
                   control = list(eval.max = 10000))
+        print(2)
+
         resid <- poisson_resid(pm)
+        print(3)
+
       }
 
       if (use_robust_errors.) {
