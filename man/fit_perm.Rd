@@ -4,7 +4,7 @@
 \alias{fit_perm}
 \title{Internal Auxiliary function to a permutation model for QAPcss()}
 \usage{
-fit_perm(family., predx, ref, xi., mod, fitx, rand, use_robust_errors)
+fit_perm(family., predx, ref, xi., mod, fitx, rand, nx., use_robust_errors)
 }
 \arguments{
 \item{family.}{character; model family to be estimated.}

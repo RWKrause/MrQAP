@@ -34,6 +34,7 @@
 #' @export
 #' @import parallel
 #' @import lme4
+#' @import gmm
 
 
 QAPglm <- function(y,

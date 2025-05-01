@@ -13,6 +13,7 @@
 #' @returns Returns if a current permutation is more or less extreme than observed.
 #' @import lme4
 #' @import nnet
+#' @import gmm
 
 
 fit_perm <- function(family.,

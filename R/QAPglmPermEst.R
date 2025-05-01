@@ -17,6 +17,7 @@
 #'
 #' @returns Results for one permutation.
 #' @import lme4
+#' @import gmm
 
 QAPglmPermEst <- function(i,
                            y.,
