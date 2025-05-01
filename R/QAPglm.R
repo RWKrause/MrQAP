@@ -2,7 +2,7 @@
 #'
 #' @param y matrix or list; \code{y} needs to be a square \code{matrix}. Alternatively, \code{y} can be a \code{list} of matrices, if there are multiple networks that should be predicted at the same time.
 #'
-#' @param x matrix or list; needs to be a square \code{matrix} with the same dimensions as \code{y} and is the predictor for \code{y}. In most cases you have more than one predictor. Then \code{x} needs to be a \code{list} of matrices of the same dimensionality as \code{y}. If \code{y} is a \code{list}, then \code{x} should be a \code{list} of \code{list}s. Each predictor variable should be its own \code{list}, with each entrance being a \code{matrix} for each of the separate matrices in \code{y}. These \code{list}s are then combined into one \code{list} of \code{list}s (e.g., \code{x[[1]][[2]]} is the predictor array of the first predictor for the second group). It is highly recommended that \code{x} is named. The names will be carried to the output.
+#' @param x matrix or list; needs to be a square \code{matrix} with the same dimensions as \code{y} and is the predictor for \code{y}. In most cases you have more than one predictor. Then \code{x} needs to be a \code{list} of matrices of the same dimensionality as \code{y}. If \code{y} is a \code{list}, then \code{x} should be a \code{list} of \code{list}s. Each predictor variable should be its own \code{list}, with each entrance being a \code{matrix} for each of the separate matrices in \code{y}. These \code{list}s are then combined into one \code{list} of \code{list}s (e.g., \code{x[[1]][[2]]} is the predictor array of the first predictor for the second group). It is highly recommended that \code{x} is named. The names will be carried to the output. Do not name a variable one of the following names: "location", "yv", "nv", "sv", or "rv".
 #'
 #' @param family character; While there is controversy around using anything but a linear model in MRQAP (family = 'gaussian'), \code{QAPglm()} supports all natural \code{R} model families (see \code{?family}).
 #'
@@ -11,6 +11,8 @@
 #' @param diag logical; If \code{TRUE} diagonal values will also be included in the calculation. This is set to be \code{FALSE} by default and can potentially bias results when \code{TRUE}. (If \code{TRUE} is meaningful, it is recommended to run the model with and without \code{diag = TRUE} to see how relevant the diagonal is.)
 #'
 #' @param nullhyp character; Currently only two baseline models are available \code{nullhyp = 'qapy'} and \code{nullhyp = 'qapspp'}. In general, 'qapspp' is the recommended option (see Dekker, Krackhardt, & Snijders, 2007). However, it costs more time and if all \code{x} are uncorrelated with each other both 'qapy' and 'qapspp' will give the same results.
+#'
+#'@param estimator character; Choose estimator for the model family. Default is \code{estimator = 'standard'} which will either be least-squares or MLE. For \code{family = 'binomial'}, Generalized Methods of Moments is also available; \code{estimator = 'gmm'}. Currently gmm cannot be combined with random intercepts.
 #'
 #' @param reps integer; indicates how many permutations should be performed. Default is 1000 but larger numbers are highly recommended.
 #'
@@ -38,22 +40,23 @@
 
 
 QAPglm <- function(y,
-                    x,
-                    family = 'gaussian',
-                    mode = "directed",
-                    diag = FALSE,
-                    nullhyp = "qapspp",
-                    reps = 1000,
-                    seed = NULL,
-                    groups = NULL,
-                    ncores = NULL,
-                    same_x_4_all_y = FALSE,
-                    random_intercept_nets   = FALSE,
-                    random_intercept_sender   = FALSE,
-                    random_intercept_receiver = FALSE,
-                    random_intercept_other = NULL,
-                    use_robust_errors = FALSE,
-                    error_file = NULL) {
+                   x,
+                   family = 'gaussian',
+                   mode = 'directed',
+                   diag = FALSE,
+                   nullhyp = 'qapspp',
+                   estimator = 'standard',
+                   reps = 1000,
+                   seed = NULL,
+                   groups = NULL,
+                   ncores = NULL,
+                   same_x_4_all_y = FALSE,
+                   random_intercept_nets   = FALSE,
+                   random_intercept_sender   = FALSE,
+                   random_intercept_receiver = FALSE,
+                   random_intercept_other = NULL,
+                   use_robust_errors = FALSE,
+                   error_file = NULL) {
 
   if (!is.list(y)) {
     large <- FALSE
@@ -191,15 +194,44 @@ QAPglm <- function(y,
       fit$r.squared     <- summary(base_model)$r.squared
       fit$adj.r.squared <- summary(base_model)$adj.r.squared
     } else {
-      base_model      <- glm(mod, data = pred, family = family)
+      if (estimator == 'standard') {
+        base_model <- glm(mod, data = pred, family = family)
+        resid <- residuals(base_model)
+      } else {
+        if (family == 'binomial') {
+          base_model <- gmm(logit_moments,
+                            x = list(y = pred$yv,
+                                     x = cbind(1,as.matrix(pred[,names(x)]))),
+                            t0 = rnorm(nx + 1),
+                            wmatrix = "optimal",
+                            vcov = "MDS",
+                            optfct = "nlminb",
+                            control = list(eval.max = 10000))
+          resid <- logit_resid(base_model)
+
+        } else if (family == 'poisson') {
+          base_model <- gmm(poisson_moments,
+                            x = list(y = pred$yv,
+                                     x = cbind(1,as.matrix(pred[,names(x)]))),
+                            t0 = rnorm(nx + 1),
+                            wmatrix = "optimal",
+                            vcov = "MDS",
+                            optfct = "nlminb",
+                            control = list(eval.max = 10000))
+          resid <- poisson_resid(base_model)
+        }
+      }
     }
-    resid <- residuals(base_model)
+
     fit$coefficients  <- base_model$coefficients
+
     if (use_robust_errors) {
       fit$t <- fit$coefficients / HC3(xv,resid)
     } else {
       fit$t <- summary(base_model)$coefficients[,3]
     }
+    names(fit$t) <- c('Intercept',names(x))
+    names(fit$coefficients) <- c('Intercept',names(x))
   } else {
     if (family == 'gaussian') {
       base_model <- lme4::lmer(mod, data = pred)
@@ -232,6 +264,7 @@ QAPglm <- function(y,
                                groups. = groups,
                                fit. = fit,
                                family. = family,
+                               estimator. = estimator,
                                RIO. = RIO,
                                use_robust_errors. = use_robust_errors,
                                same_x_4_all_y. = same_x_4_all_y,
@@ -284,6 +317,7 @@ QAPglm <- function(y,
                                  diag. = diag,
                                  mod. = mod,
                                  family. = family,
+                                 estimator. = estimator,
                                  groups. = groups,
                                  fit. = fit,
                                  xRm. = xRm,
@@ -295,14 +329,14 @@ QAPglm <- function(y,
       resL <- unlist(res, recursive = FALSE)
 
       fit$lower[,xi]  <- Reduce(f = '+',
-                                    resL[names(resL) == 'lower'],
-                                    0)/reps
+                                resL[names(resL) == 'lower'],
+                                0)/reps
       fit$larger[,xi] <- Reduce(f = '+',
-                                    resL[names(resL) == 'larger'],
-                                    0)/reps
+                                resL[names(resL) == 'larger'],
+                                0)/reps
       fit$abs[,xi]    <- Reduce(f = '+',
-                                    resL[names(resL) == 'abs'],
-                                    0)/reps
+                                resL[names(resL) == 'abs'],
+                                0)/reps
     }
   }
 
@@ -330,6 +364,7 @@ QAPglm <- function(y,
   fit$groups <- unique(unlist(groups))
   fit$simple_fit <- base_model
   fit$robust_se <- use_robust_errors
+  fit$estimator <- estimator
 
   if (family == 'gaussian') {
     class(fit) <- 'QAPRegression'

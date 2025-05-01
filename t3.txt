@@ -1,0 +1,104 @@
+starting worker pid=21100 on localhost:11820 at 14:05:42.755
+starting worker pid=7004 on localhost:11820 at 14:05:42.940
+starting worker pid=24896 on localhost:11820 at 14:05:43.139
+starting worker pid=22920 on localhost:11820 at 14:05:43.321
+starting worker pid=24076 on localhost:11820 at 14:05:43.507
+  location yv nv sv rv          v           w           z
+1        2 19  1  2  1 -0.6305268  0.04902973  0.06681561
+2        3 19  1  3  1  0.7360508 -1.36832259  2.66286064
+3        4  0  1  4  1  1.7459475  0.58968225  0.75489771
+4        5  0  1  5  1 -1.0811004  0.23822810  0.57500600
+5        6  1  1  6  1  0.1083490 -0.44337314 -1.18739088
+6        7  0  1  7  1 -1.4216905  0.81238226  0.75105229
+  location yv nv sv rv          v           w           z
+1        2  2  1  2  1 -0.6305268  0.04902973  0.06681561
+2        3  1  1  3  1  0.7360508 -1.36832259  2.66286064
+3        4  6  1  4  1  1.7459475  0.58968225  0.75489771
+4        5  4  1  5  1 -1.0811004  0.23822810  0.57500600
+5        6 15  1  6  1  0.1083490 -0.44337314 -1.18739088
+6        7 19  1  7  1 -1.4216905  0.81238226  0.75105229
+  location yv nv sv rv          v           w           z
+1        2 20  1  2  1 -0.6305268  0.04902973  0.06681561
+2        3 10  1  3  1  0.7360508 -1.36832259  2.66286064
+3        4 14  1  4  1  1.7459475  0.58968225  0.75489771
+4        5 20  1  5  1 -1.0811004  0.23822810  0.57500600
+5        6  1  1  6  1  0.1083490 -0.44337314 -1.18739088
+6        7  0  1  7  1 -1.4216905  0.81238226  0.75105229
+  location yv nv sv rv          v           w           z
+1        2 15  1  2  1 -0.6305268  0.04902973  0.06681561
+2        3  7  1  3  1  0.7360508 -1.36832259  2.66286064
+3        4  3  1  4  1  1.7459475  0.58968225  0.75489771
+4        5  0  1  5  1 -1.0811004  0.23822810  0.57500600
+5        6 14  1  6  1  0.1083490 -0.44337314 -1.18739088
+6        7 13  1  7  1 -1.4216905  0.81238226  0.75105229
+  location yv nv sv rv          v           w           z
+1        2  5  1  2  1 -0.6305268  0.04902973  0.06681561
+2        3  6  1  3  1  0.7360508 -1.36832259  2.66286064
+3        4 18  1  4  1  1.7459475  0.58968225  0.75489771
+4        5 16  1  5  1 -1.0811004  0.23822810  0.57500600
+5        6  9  1  6  1  0.1083490 -0.44337314 -1.18739088
+6        7 17  1  7  1 -1.4216905  0.81238226  0.75105229
+Error in unserialize(node$con) : error reading from connection
+Calls: <Anonymous> ... doTryCatch -> recvData -> recvData.SOCKnode -> unserialize
+Error in unserialize(node$con) : error reading from connection
+Calls: <Anonymous> ... doTryCatch -> recvData -> recvData.SOCKnode -> unserialize
+In addition: Warning message:
+replacing previous import 'gmm::checkConv' by 'lme4::checkConv' when loading 'MrQAP' 
+Error in unserialize(node$con) : error reading from connection
+Calls: <Anonymous> ... doTryCatch -> recvData -> recvData.SOCKnode -> unserialize
+Error in unserialize(node$con) : error reading from connection
+Calls: <Anonymous> ... doTryCatch -> recvData -> recvData.SOCKnode -> unserialize
+In addition: In addition: Warning message:
+replacing previous import 'gmm::checkConv' by 'lme4::checkConv' when loading 'MrQAP' 
+Warning message:
+replacing previous import 'gmm::checkConv' by 'lme4::checkConv' when loading 'MrQAP' 
+Execution halted
+Execution halted
+Warning message:
+replacing previous import 'gmm::checkConv' by 'lme4::checkConv' when loading 'MrQAP' 
+Execution halted
+Error in unserialize(node$con) : error reading from connection
+Calls: <Anonymous> ... doTryCatch -> recvData -> recvData.SOCKnode -> unserialize
+In addition: Warning message:
+replacing previous import 'gmm::checkConv' by 'lme4::checkConv' when loading 'MrQAP' 
+Execution halted
+starting worker pid=10300 on localhost:11820 at 14:19:05.221
+starting worker pid=13944 on localhost:11820 at 14:19:05.435
+starting worker pid=6840 on localhost:11820 at 14:19:05.708
+starting worker pid=4940 on localhost:11820 at 14:19:05.920
+starting worker pid=30396 on localhost:11820 at 14:19:06.138
+  location yv nv sv rv          v           w           z
+1        2  4  1  2  1 -0.6305268  0.04902973  0.06681561
+2        3 12  1  3  1  0.7360508 -1.36832259  2.66286064
+3        4 12  1  4  1  1.7459475  0.58968225  0.75489771
+4        5 10  1  5  1 -1.0811004  0.23822810  0.57500600
+5        6 17  1  6  1  0.1083490 -0.44337314 -1.18739088
+6        7  4  1  7  1 -1.4216905  0.81238226  0.75105229
+  location yv nv sv rv          v           w           z
+1        2 18  1  2  1 -0.6305268  0.04902973  0.06681561
+2        3  4  1  3  1  0.7360508 -1.36832259  2.66286064
+3        4 14  1  4  1  1.7459475  0.58968225  0.75489771
+4        5 10  1  5  1 -1.0811004  0.23822810  0.57500600
+5        6  1  1  6  1  0.1083490 -0.44337314 -1.18739088
+6        7 14  1  7  1 -1.4216905  0.81238226  0.75105229
+  location yv nv sv rv          v           w           z
+1        2 20  1  2  1 -0.6305268  0.04902973  0.06681561
+2        3  4  1  3  1  0.7360508 -1.36832259  2.66286064
+3        4  9  1  4  1  1.7459475  0.58968225  0.75489771
+4        5  4  1  5  1 -1.0811004  0.23822810  0.57500600
+5        6 12  1  6  1  0.1083490 -0.44337314 -1.18739088
+6        7 14  1  7  1 -1.4216905  0.81238226  0.75105229
+  location yv nv sv rv          v           w           z
+1        2 10  1  2  1 -0.6305268  0.04902973  0.06681561
+2        3 20  1  3  1  0.7360508 -1.36832259  2.66286064
+3        4  1  1  4  1  1.7459475  0.58968225  0.75489771
+4        5  8  1  5  1 -1.0811004  0.23822810  0.57500600
+5        6  7  1  6  1  0.1083490 -0.44337314 -1.18739088
+6        7  6  1  7  1 -1.4216905  0.81238226  0.75105229
+  location yv nv sv rv          v           w           z
+1        2  4  1  2  1 -0.6305268  0.04902973  0.06681561
+2        3 18  1  3  1  0.7360508 -1.36832259  2.66286064
+3        4 15  1  4  1  1.7459475  0.58968225  0.75489771
+4        5  1  1  5  1 -1.0811004  0.23822810  0.57500600
+5        6  6  1  6  1  0.1083490 -0.44337314 -1.18739088
+6        7  4  1  7  1 -1.4216905  0.81238226  0.75105229

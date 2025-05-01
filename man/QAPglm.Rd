@@ -11,6 +11,7 @@ QAPglm(
   mode = "directed",
   diag = FALSE,
   nullhyp = "qapspp",
+  estimator = "standard",
   reps = 1000,
   seed = NULL,
   groups = NULL,
@@ -27,7 +28,7 @@ QAPglm(
 \arguments{
 \item{y}{matrix or list; \code{y} needs to be a square \code{matrix}. Alternatively, \code{y} can be a \code{list} of matrices, if there are multiple networks that should be predicted at the same time.}
 
-\item{x}{matrix or list; needs to be a square \code{matrix} with the same dimensions as \code{y} and is the predictor for \code{y}. In most cases you have more than one predictor. Then \code{x} needs to be a \code{list} of matrices of the same dimensionality as \code{y}. If \code{y} is a \code{list}, then \code{x} should be a \code{list} of \code{list}s. Each predictor variable should be its own \code{list}, with each entrance being a \code{matrix} for each of the separate matrices in \code{y}. These \code{list}s are then combined into one \code{list} of \code{list}s (e.g., \code{x[[1]][[2]]} is the predictor array of the first predictor for the second group). It is highly recommended that \code{x} is named. The names will be carried to the output.}
+\item{x}{matrix or list; needs to be a square \code{matrix} with the same dimensions as \code{y} and is the predictor for \code{y}. In most cases you have more than one predictor. Then \code{x} needs to be a \code{list} of matrices of the same dimensionality as \code{y}. If \code{y} is a \code{list}, then \code{x} should be a \code{list} of \code{list}s. Each predictor variable should be its own \code{list}, with each entrance being a \code{matrix} for each of the separate matrices in \code{y}. These \code{list}s are then combined into one \code{list} of \code{list}s (e.g., \code{x[[1]][[2]]} is the predictor array of the first predictor for the second group). It is highly recommended that \code{x} is named. The names will be carried to the output. Do not name a variable one of the following names: "location", "yv", "nv", "sv", or "rv".}
 
 \item{family}{character; While there is controversy around using anything but a linear model in MRQAP (family = 'gaussian'), \code{QAPglm()} supports all natural \code{R} model families (see \code{?family}).}
 
@@ -36,6 +37,8 @@ QAPglm(
 \item{diag}{logical; If \code{TRUE} diagonal values will also be included in the calculation. This is set to be \code{FALSE} by default and can potentially bias results when \code{TRUE}. (If \code{TRUE} is meaningful, it is recommended to run the model with and without \code{diag = TRUE} to see how relevant the diagonal is.)}
 
 \item{nullhyp}{character; Currently only two baseline models are available \code{nullhyp = 'qapy'} and \code{nullhyp = 'qapspp'}. In general, 'qapspp' is the recommended option (see Dekker, Krackhardt, & Snijders, 2007). However, it costs more time and if all \code{x} are uncorrelated with each other both 'qapy' and 'qapspp' will give the same results.}
+
+\item{estimator}{character; Choose estimator for the model family. Default is \code{estimator = 'standard'} which will either be least-squares or MLE. For \code{family = 'binomial'}, Generalized Methods of Moments is also available; \code{estimator = 'gmm'}. Currently gmm cannot be combined with random intercepts.}
 
 \item{reps}{integer; indicates how many permutations should be performed. Default is 1000 but larger numbers are highly recommended.}
 

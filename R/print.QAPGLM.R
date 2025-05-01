@@ -22,11 +22,13 @@ print.QAPGLM <- function(x,
   stopifnot(inherits(x, "QAPGLM"))
 
   if (is.null(x$random.intercepts)) {
-    cat("\nGeneralized Linear Network Model\n\n")
+    cat("\nGeneralized Linear Network Model\n")
   } else {
-    cat("\nGeneralized Linear Mixed Network Model fit by REML\n\n")
+    cat("\nGeneralized Linear Mixed Network Model fit by REML\n")
   }
-
+  if (x$estimator == 'gmm') {
+    cat("\nEstimator: Generalized Method-of-Moments.")
+  }
   if (!is.null(x$groups)) {
     cat("\nPermutations were performed within groups only.")
   }
@@ -96,8 +98,9 @@ print.QAPGLM <- function(x,
     print.table(cmat)
     cat('--------------\n')
   }
-
-  cat("\n\nAIC:", format(AIC(x$simple_fit)))
-  cat("\nBIC:",   format(BIC(x$simple_fit)))
-  cat("\n\n")
+  if (x$estimator != 'gmm') {
+    cat("\n\nAIC:", format(AIC(x$simple_fit)))
+    cat("\nBIC:",   format(BIC(x$simple_fit)))
+    cat("\n\n")
+  }
 }

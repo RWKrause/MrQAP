@@ -46,19 +46,19 @@ make_qap_data <- function(y,
     x[[var]][!valid] <- NA
   }
 
-  yv <- as.vector(y)[vv]
+  pred <- data.frame(location = as.vector(matrix(1:n**2,n,n))[vv],
+                     yv = as.vector(y)[vv])
+
+  pred$nv <- as.factor(net)
 
   sv <- matrix(1:n,n,n)
   sv[!valid] <- NA
+  pred$sv <- as.vector(sv)[vv]
 
   rv <- t(matrix(1:n,n,n))
   rv[!valid] <- NA
+  pred$rv <- as.vector(rv)[vv]
 
-  pred <- data.frame(yv = yv,
-                     nv = as.factor(net),
-                     sv = as.vector(sv)[vv],
-                     rv = as.vector(rv)[vv])
-  pred$location <- as.vector(matrix(1:n**2,n,n))[vv]
 
   if (!is.null(RIO)) {
     if (!is.list(RIO)) {
