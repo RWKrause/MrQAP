@@ -38,15 +38,15 @@ QAPglmPermEst <- function(i,
   nx <- length(xRm.)
 
   if (!is.list(y.)) {
-    pred <- make_qap_data(y = y.,
-                          x = xRm.,
-                          g = groups.,
-                          RIO = RIO.,
-                          diag = diag.,
-                          mode = mode.,
-                          net = 1,
-                          perm = TRUE,
-                          xi = xi.)
+    pred <- MrQAP:::make_qap_data(y = y.,
+                                  x = xRm.,
+                                  g = groups.,
+                                  RIO = RIO.,
+                                  diag = diag.,
+                                  mode = mode.,
+                                  net = 1,
+                                  perm = TRUE,
+                                  xi = xi.)
 
   } else {
     pred_list <- vector(mode = 'list', length = length(y.))
@@ -70,15 +70,15 @@ QAPglmPermEst <- function(i,
       }
       names(x2) <- names(xRm.)
 
-      pred_list[[net]] <- make_qap_data(y = y.[[net]],
-                                        x = x2,
-                                        g = groups.[[net]],
-                                        RIO = RIO2,
-                                        diag = diag.,
-                                        mode = mode.,
-                                        net = net,
-                                        perm = TRUE,
-                                        xi = xi.)
+      pred_list[[net]] <- MrQAP:::make_qap_data(y = y.[[net]],
+                                                x = x2,
+                                                g = groups.[[net]],
+                                                RIO = RIO2,
+                                                diag = diag.,
+                                                mode = mode.,
+                                                net = net,
+                                                perm = TRUE,
+                                                xi = xi.)
     }
 
     pred <- Reduce(f = 'rbind', pred_list)
