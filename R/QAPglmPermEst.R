@@ -38,7 +38,7 @@ QAPglmPermEst <- function(i,
   nx <- length(xRm.)
 
   if (!is.list(y.)) {
-    pred <- MrQAP:::make_qap_data(y = y.,
+    pred <- make_qap_data(y = y.,
                                   x = xRm.,
                                   g = groups.,
                                   RIO = RIO.,
@@ -70,7 +70,7 @@ QAPglmPermEst <- function(i,
       }
       names(x2) <- names(xRm.)
 
-      pred_list[[net]] <- MrQAP:::make_qap_data(y = y.[[net]],
+      pred_list[[net]] <- make_qap_data(y = y.[[net]],
                                                 x = x2,
                                                 g = groups.[[net]],
                                                 RIO = RIO2,
