@@ -39,14 +39,14 @@ QAPglmPermEst <- function(i,
 
   if (!is.list(y.)) {
     pred <- make_qap_data(y = y.,
-                                  x = xRm.,
-                                  g = groups.,
-                                  RIO = RIO.,
-                                  diag = diag.,
-                                  mode = mode.,
-                                  net = 1,
-                                  perm = TRUE,
-                                  xi = xi.)
+                          x = xRm.,
+                          g = groups.,
+                          RIO = RIO.,
+                          diag = diag.,
+                          mode = mode.,
+                          net = 1,
+                          perm = TRUE,
+                          xi = xi.)
 
   } else {
     pred_list <- vector(mode = 'list', length = length(y.))
@@ -71,14 +71,14 @@ QAPglmPermEst <- function(i,
       names(x2) <- names(xRm.)
 
       pred_list[[net]] <- make_qap_data(y = y.[[net]],
-                                                x = x2,
-                                                g = groups.[[net]],
-                                                RIO = RIO2,
-                                                diag = diag.,
-                                                mode = mode.,
-                                                net = net,
-                                                perm = TRUE,
-                                                xi = xi.)
+                                        x = x2,
+                                        g = groups.[[net]],
+                                        RIO = RIO2,
+                                        diag = diag.,
+                                        mode = mode.,
+                                        net = net,
+                                        perm = TRUE,
+                                        xi = xi.)
     }
 
     pred <- Reduce(f = 'rbind', pred_list)
@@ -99,30 +99,27 @@ QAPglmPermEst <- function(i,
       }
     } else {
       if (family. == 'binomial') {
-        pm <- gmm(logit_moments,
-                  x = list(y = pred$yv,
-                           x = cbind(1,as.matrix(pred[,names(xRm.)]))),
-                  t0 = rnorm(nx + 1),
-                  wmatrix = "optimal",
-                  vcov = "MDS",
-                  optfct = "nlminb",
-                  control = list(eval.max = 10000))
+        pm <- gmm::gmm(logit_moments,
+                       x = list(y = pred$yv,
+                                x = cbind(1,as.matrix(pred[,names(xRm.)]))),
+                       t0 = rnorm(nx + 1),
+                       wmatrix = "optimal",
+                       vcov = "MDS",
+                       optfct = "nlminb",
+                       control = list(eval.max = 10000))
         resid <- logit_resid(pm)
 
       } else if (family. == 'poisson') {
-        print(head(pred))
-        pm <- gmm(poisson_moments,
-                  x = list(y = pred$yv,
-                           x = cbind(1,as.matrix(pred[,names(xRm.)]))),
-                  t0 = rnorm(nx + 1),
-                  wmatrix = "optimal",
-                  vcov = "MDS",
-                  optfct = "nlminb",
-                  control = list(eval.max = 10000))
-        print(2)
+        pm <- gmm::gmm(poisson_moments,
+                       x = list(y = pred$yv,
+                                x = cbind(1,as.matrix(pred[,names(xRm.)]))),
+                       t0 = rnorm(nx + 1),
+                       wmatrix = "optimal",
+                       vcov = "MDS",
+                       optfct = "nlminb",
+                       control = list(eval.max = 10000))
 
         resid <- poisson_resid(pm)
-        print(3)
 
       }
 

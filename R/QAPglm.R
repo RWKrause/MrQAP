@@ -1,36 +1,111 @@
 #' Parameter and p-value estimation with MRQAP
 #'
-#' @param y matrix or list; \code{y} needs to be a square \code{matrix}. Alternatively, \code{y} can be a \code{list} of matrices, if there are multiple networks that should be predicted at the same time.
+#' @param y matrix or list; \code{y} needs to be a square \code{matrix}.
+#' Alternatively, \code{y} can be a \code{list} of matrices, if there are
+#' multiple networks that should be predicted at the same time.
 #'
-#' @param x matrix or list; needs to be a square \code{matrix} with the same dimensions as \code{y} and is the predictor for \code{y}. In most cases you have more than one predictor. Then \code{x} needs to be a \code{list} of matrices of the same dimensionality as \code{y}. If \code{y} is a \code{list}, then \code{x} should be a \code{list} of \code{list}s. Each predictor variable should be its own \code{list}, with each entrance being a \code{matrix} for each of the separate matrices in \code{y}. These \code{list}s are then combined into one \code{list} of \code{list}s (e.g., \code{x[[1]][[2]]} is the predictor array of the first predictor for the second group). It is highly recommended that \code{x} is named. The names will be carried to the output. Do not name a variable one of the following names: "location", "yv", "nv", "sv", or "rv".
+#' @param x matrix or list; needs to be a square \code{matrix} with the same
+#' dimensions as \code{y} and is the predictor for \code{y}. In most cases you
+#' have more than one predictor. Then \code{x} needs to be a \code{list} of
+#' matrices of the same dimensionality as \code{y}. If \code{y} is a
+#' \code{list}, then \code{x} should be a \code{list} of \code{list}s. Each
+#' predictor variable should be its own \code{list}, with each entrance being a
+#' \code{matrix} for each of the separate matrices in \code{y}. These
+#' \code{list}s are then combined into one \code{list} of \code{list}s (e.g.,
+#' \code{x[[1]][[2]]} is the predictor array of the first predictor for the
+#' second group). It is highly recommended that \code{x} is named. The names
+#' will be carried to the output. Do not name a variable one of the following
+#' names: "location", "yv", "nv", "sv", or "rv".
 #'
-#' @param family character; While there is controversy around using anything but a linear model in MRQAP (family = 'gaussian'), \code{QAPglm()} supports all natural \code{R} model families (see \code{?family}).
+#' @param family character; While there is controversy around using anything but
+#'  a linear model in MRQAP (family = 'gaussian'), \code{QAPglm()} supports all
+#'   natural \code{R} model families (see \code{?family}).
 #'
-#' @param mode character; indicates whether the \code{matrix} in \code{y} is 'directed' or 'undirected'. If it is 'undirected' only the upper triangle (\code{upper.tri()}) of each \code{matrix} will be used.
+#' @param mode character; indicates whether the \code{matrix} in \code{y} is
+#' 'directed' or 'undirected'. If it is 'undirected' only the upper triangle
+#' (\code{upper.tri()}) of each \code{matrix} will be used.
 #'
-#' @param diag logical; If \code{TRUE} diagonal values will also be included in the calculation. This is set to be \code{FALSE} by default and can potentially bias results when \code{TRUE}. (If \code{TRUE} is meaningful, it is recommended to run the model with and without \code{diag = TRUE} to see how relevant the diagonal is.)
+#' @param diag logical; If \code{TRUE} diagonal values will also be included in
+#' the calculation. This is set to be \code{FALSE} by default and can
+#' potentially bias results when \code{TRUE}. (If \code{TRUE} is meaningful, it
+#' is recommended to run the model with and without \code{diag = TRUE} to see
+#' how relevant the diagonal is.)
 #'
-#' @param nullhyp character; Currently only two baseline models are available \code{nullhyp = 'qapy'} and \code{nullhyp = 'qapspp'}. In general, 'qapspp' is the recommended option (see Dekker, Krackhardt, & Snijders, 2007). However, it costs more time and if all \code{x} are uncorrelated with each other both 'qapy' and 'qapspp' will give the same results.
+#' @param nullhyp character; Currently only two baseline models are available
+#' \code{nullhyp = 'qapy'} and \code{nullhyp = 'qapspp'}. In general, 'qapspp'
+#' is the recommended option (see Dekker, Krackhardt, & Snijders, 2007).
+#' However, it costs more time and if all \code{x} are uncorrelated with each
+#' other both 'qapy' and 'qapspp' will give the same results.
 #'
-#'@param estimator character; Choose estimator for the model family. Default is \code{estimator = 'standard'} which will either be least-squares or MLE. For \code{family = 'binomial'}, Generalized Methods of Moments is also available; \code{estimator = 'gmm'}. Currently gmm cannot be combined with random intercepts.
+#'@param estimator character; Choose estimator for the model family. Default is
+#'\code{estimator = 'standard'} which will either be least-squares or MLE. For
+#'\code{family = 'binomial'}, Generalized Methods of Moments is also available;
+#'\code{estimator = 'gmm'}. Currently gmm cannot be combined with random
+#'intercepts.
 #'
-#' @param reps integer; indicates how many permutations should be performed. Default is 1000 but larger numbers are highly recommended.
+#' @param reps integer; indicates how many permutations should be performed.
+#' Default is 1000 but larger numbers are highly recommended.
 #'
-#' @param seed integer; Given the random nature of the permutation, every call of \code{QAPglm()} will lead to different responses that will asymptotically converge with larger values for \code{reps}. To get consistent answers, one should specify a random number seed with the seed argument (e.g., \code{seed = 1402}).
+#' @param seed integer; Given the random nature of the permutation, every call
+#' of \code{QAPglm()} will lead to different responses that will asymptotically
+#' converge with larger values for \code{reps}. To get consistent answers, one
+#' should specify a random number seed with the seed argument (e.g.,
+#' \code{seed = 1402}).
 #'
-#' @param groups vector; It might be that a larger network is composed of qualitatively different groups. In that case, it might be desirable to only permute within groups. \code{groups} is a \code{vector} of \code{length = nrow(y)}, indicating the grouping of the nodes. If \code{y} is a \code{list} then \code{groups} needs to be a \code{list} of vectors.
+#' @param groups vector; It might be that a larger network is composed of
+#' qualitatively different groups. In that case, it might be desirable to only
+#' permute within groups. \code{groups} is a \code{vector} of \code{length =
+#' nrow(y)}, indicating the grouping of the nodes. If \code{y} is a \code{list}
+#' then \code{groups} needs to be a \code{list} of vectors.
 #'
-#' @param ncores integer; QAPglm() is parallelized (using the \code{parallel} package). If multiple cores are available, using them cuts the estimation in near linear relation by using multiple cores (e.g., \code{ncores = 10}). Be aware that depending on the \code{R} installation, parallelization can fail when too many cores are addressed at the same time. If you are using an HPC cluster, the recommendation is to submit many jobs, each only asking for 5-20 cores, and running only a few hundred \code{reps}. The resulting outputs can then be combined with the auxiliary function \code{combine_qap_estimates()}.
+#' @param ncores integer; QAPglm() is parallelized (using the \code{parallel}
+#' package). If multiple cores are available, using them cuts the estimation in
+#' near linear relation by using multiple cores (e.g., \code{ncores = 10}). Be
+#' aware that depending on the \code{R} installation, parallelization can fail
+#' when too many cores are addressed at the same time. If you are using an HPC
+#' cluster, the recommendation is to submit many jobs, each only asking for 5-20
+#' cores, and running only a few hundred \code{reps}. The resulting outputs can
+#' then be combined with the auxiliary function \code{combine_qap_estimates()}.
 #'
-#' @param same_x_4_all_y logical; If \code{y} is a \code{list} but all \code{x} should remain the same for all \code{y}, toggle this to TRUE. This might be relevant if similar but different networks between the same nodes are predicted. Should probably be combined with \code{random_intercept_groups = TRUE}.
+#' @param same_x_4_all_y logical; If \code{y} is a \code{list} but all \code{x}
+#' should remain the same for all \code{y}, toggle this to TRUE. This might be
+#' relevant if similar but different networks between the same nodes are
+#' predicted. Should probably be combined with \code{random_intercept_groups =
+#' TRUE}.
 #'
-#' @param random_intercept_... logical; Multiple arguments exist to specify random intercepts. instead of relying on \code{glm()} estimation will use the \code{lmer()} or \code{glmer()} from the \code{lme4} package to obtain parameter estimates and t-values for the permutation assessment. \code{random_intercept_nets} includes a random intercept for each network when \code{y} is a \code{list}. \code{random_intercept_sender} and \code{random_intercept_receiver} add intercepts for each node on the corresponding dimension (row = sender, column = receiver). Additionally, there is \code{random_intercept_other}. This argument expects an input corresponding to every element in \code{y} (either a similarly sized \code{matrix} or a \code{list} of matrices corresponding to each element in \code{y} when is a \code{list}). This \code{matrix} (or \code{list} thereof) will be used to create cell-specifc random intercepts. This might be useful if some relationships are qualitatively different than others but all are expected to follow the same pattern (e.g., for some cells differences in (intercept and) residual variance are expected). You can submit \code{list}s of \code{list}s of matrices if you want multiple random intercept variables added
+#' @param random_intercept_... logical; Multiple arguments exist to specify
+#' random intercepts. instead of relying on \code{glm()} estimation will use the
+#' \code{lmer()} or \code{glmer()} from the \code{lme4} package to obtain
+#' parameter estimates and t-values for the permutation assessment.
+#' \code{random_intercept_nets} includes a random intercept for each network
+#' when \code{y} is a \code{list}. \code{random_intercept_sender} and
+#' \code{random_intercept_receiver} add intercepts for each node on the
+#' corresponding dimension (row = sender, column = receiver). Additionally,
+#' there is \code{random_intercept_other}. This argument expects an input
+#' corresponding to every element in \code{y} (either a similarly sized
+#' \code{matrix} or a \code{list} of matrices corresponding to each element in
+#' \code{y} when is a \code{list}). This \code{matrix} (or \code{list} thereof)
+#' will be used to create cell-specific random intercepts. This might be useful
+#' if some relationships are qualitatively different than others but all are
+#' expected to follow the same pattern (e.g., for some cells differences in
+#' (intercept and) residual variance are expected). You can submit \code{list}s
+#' of \code{list}s of matrices if you want multiple random intercept variables
+#' added.
 #'
-#' @param use_robust_errors logical; indicates if internal standard errors should be adjusted for heteroskedasticity using the HC3 adjustment. This is by default \code{FALSE} but recommended when linear probability models are being used or heterogeneity is otherwise suspected. Results will overall be more conservative and thus significant findings more reliable.
+#' @param use_robust_errors logical; indicates if internal standard errors
+#' should be adjusted for heteroskedasticity using the HC3 adjustment. This is
+#' by default \code{FALSE} but recommended when linear probability models are
+#' being used or heterogeneity is otherwise suspected. Results will overall be
+#' more conservative and thus significant findings more reliable.
 #'
-#' @param error_file character; Not meant for the end-user. Passed to \code{makeCluster(ncores, outfile = error_file)}. See \code{?parallel::makeCluster}. Helpful if you want to debug the code.
+#' @param error_file character; Not meant for the end-user. Passed to
+#' \code{makeCluster(ncores, outfile = error_file)}. See
+#' \code{?parallel::makeCluster}. Helpful if you want to debug the code.
 #'
-#' @returns an object of \code{class} \code{QAPRegression} when \code{family = 'gaussian'} or \code{QAPGLM} otherwise. It contains the basic input parameters and estimated parameters and p-values.
+#' @returns an object of \code{class} \code{QAPRegression} when \code{family =
+#' 'gaussian'} or \code{QAPGLM} otherwise. It contains the basic input
+#' parameters and estimated parameters and p-values.
+#'
 #' import parallel
 #' import lme4
 #' @export
