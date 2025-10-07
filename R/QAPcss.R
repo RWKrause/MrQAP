@@ -122,15 +122,6 @@ QAPcss <- function(y,
 
 
 
-  if (is.null(groups) && rig) {
-    warning('Faulty argument!
-            Random intercepts for groups requested but no groups given.
-            Will proceed without random intercept estimation.')
-    rig <- FALSE
-  }
-
-
-
 
   if (!large) {
     if (!is.array(y) || !as.logical(length(unique(dim(y))))) {
