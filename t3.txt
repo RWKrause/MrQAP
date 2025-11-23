@@ -1,104 +1,126 @@
-starting worker pid=21100 on localhost:11820 at 14:05:42.755
-starting worker pid=7004 on localhost:11820 at 14:05:42.940
-starting worker pid=24896 on localhost:11820 at 14:05:43.139
-starting worker pid=22920 on localhost:11820 at 14:05:43.321
-starting worker pid=24076 on localhost:11820 at 14:05:43.507
-  location yv nv sv rv          v           w           z
-1        2 19  1  2  1 -0.6305268  0.04902973  0.06681561
-2        3 19  1  3  1  0.7360508 -1.36832259  2.66286064
-3        4  0  1  4  1  1.7459475  0.58968225  0.75489771
-4        5  0  1  5  1 -1.0811004  0.23822810  0.57500600
-5        6  1  1  6  1  0.1083490 -0.44337314 -1.18739088
-6        7  0  1  7  1 -1.4216905  0.81238226  0.75105229
-  location yv nv sv rv          v           w           z
-1        2  2  1  2  1 -0.6305268  0.04902973  0.06681561
-2        3  1  1  3  1  0.7360508 -1.36832259  2.66286064
-3        4  6  1  4  1  1.7459475  0.58968225  0.75489771
-4        5  4  1  5  1 -1.0811004  0.23822810  0.57500600
-5        6 15  1  6  1  0.1083490 -0.44337314 -1.18739088
-6        7 19  1  7  1 -1.4216905  0.81238226  0.75105229
-  location yv nv sv rv          v           w           z
-1        2 20  1  2  1 -0.6305268  0.04902973  0.06681561
-2        3 10  1  3  1  0.7360508 -1.36832259  2.66286064
-3        4 14  1  4  1  1.7459475  0.58968225  0.75489771
-4        5 20  1  5  1 -1.0811004  0.23822810  0.57500600
-5        6  1  1  6  1  0.1083490 -0.44337314 -1.18739088
-6        7  0  1  7  1 -1.4216905  0.81238226  0.75105229
-  location yv nv sv rv          v           w           z
-1        2 15  1  2  1 -0.6305268  0.04902973  0.06681561
-2        3  7  1  3  1  0.7360508 -1.36832259  2.66286064
-3        4  3  1  4  1  1.7459475  0.58968225  0.75489771
-4        5  0  1  5  1 -1.0811004  0.23822810  0.57500600
-5        6 14  1  6  1  0.1083490 -0.44337314 -1.18739088
-6        7 13  1  7  1 -1.4216905  0.81238226  0.75105229
-  location yv nv sv rv          v           w           z
-1        2  5  1  2  1 -0.6305268  0.04902973  0.06681561
-2        3  6  1  3  1  0.7360508 -1.36832259  2.66286064
-3        4 18  1  4  1  1.7459475  0.58968225  0.75489771
-4        5 16  1  5  1 -1.0811004  0.23822810  0.57500600
-5        6  9  1  6  1  0.1083490 -0.44337314 -1.18739088
-6        7 17  1  7  1 -1.4216905  0.81238226  0.75105229
+starting worker pid=2944 on localhost:11343 at 05:01:28.539
+starting worker pid=196 on localhost:11343 at 05:01:29.536
+starting worker pid=23164 on localhost:11343 at 05:01:29.660
+starting worker pid=25192 on localhost:11343 at 05:01:29.783
+starting worker pid=10300 on localhost:11343 at 05:01:29.905
+starting worker pid=12528 on localhost:11224 at 06:34:12.691
+starting worker pid=9260 on localhost:11224 at 06:34:12.829
+starting worker pid=26168 on localhost:11224 at 06:34:12.948
+starting worker pid=10128 on localhost:11224 at 06:34:13.066
+starting worker pid=10512 on localhost:11224 at 06:34:13.182
+Error in unserialize(node$con) : error reading from connection
+Calls: <Anonymous> ... doTryCatch -> recvData -> recvData.SOCKnode -> unserialize
+Execution halted
+Error in unserialize(node$con) : error reading from connection
+Calls: <Anonymous> ... doTryCatch -> recvData -> recvData.SOCKnode -> unserialize
+Execution halted
+Error in unserialize(node$con) : error reading from connection
+Calls: <Anonymous> ... doTryCatch -> recvData -> recvData.SOCKnode -> unserialize
+Execution halted
+Error in unserialize(node$con) : error reading from connection
+Calls: <Anonymous> ... doTryCatch -> recvData -> recvData.SOCKnode -> unserialize
+Execution halted
+Error in unserialize(node$con) : error reading from connection
+Calls: <Anonymous> ... doTryCatch -> recvData -> recvData.SOCKnode -> unserialize
+Execution halted
+starting worker pid=24588 on localhost:11494 at 06:36:21.803
+starting worker pid=25800 on localhost:11494 at 06:36:21.921
+starting worker pid=7436 on localhost:11494 at 06:36:22.039
+starting worker pid=12956 on localhost:11494 at 06:36:22.156
+starting worker pid=23992 on localhost:11494 at 06:36:22.272
+There were 12 warnings (use warnings() to see them)
+Warning messages:
+1: replacing previous import 'gmm::checkConv' by 'lme4::checkConv' when loading 'MrQAP' 
+2: In FinRes.baseGmm.r1: replacing previo
+ import 'gmm::checkConv' by 'lme4::checkConv' when loading 'MrQAP' 
+There were 11 warnings (use warnings() to see them)2: 
+In FinRes.baseGmm.res(z, Model_info) :
+  The covariance matrix of the coefficients is singular
+3: In FinRes.baseGmm.res(z, Model_info) :
+  The covariance matrix of the coefficients is singular
+4: In FinRes.baseGmm.res(z, Model_info) :
+  The covariance matrix of the coefficients is singular
+5: e covariance matrix of the coefficients is singular
+3: FinRes.baseGmm.res(z, Model_info) :
+  The covariance matrix of the coefficients is singular
+6: In FinRes.baseGmm.res(z, Model_info) :
+  The covariance matrix of the coefficients is singular
+
+  ThIn FinRes.baseGmm.res(z, Model_info) :s is singular
+
+  The covariance matrix of the coefficients is singular
+5: FinRes.baseGmm.res(z, Model_info) :
+  The covariance matrix of the coefficients is singular
+In FinRes.baseGmm.res(z, Model_info) :
+  The covariance matrix of the coefficients is singular
+In FinRes.baseGmm.res(z, Model_info) :
+  The covariance matrix of the coefficients is singular
+In FinRes.baseGmm.res(z, Model_info) :
+  The covariance matrix of the coefficients is singular
+In FinRes.baseGmm.res(z, Model_info) :
+  The covariance matrix of the coefficients is singular
+starting worker pid=19324 on localhost:11787 at 06:38:02.537
+starting worker pid=13408 on localhost:11787 at 06:38:02.660
+starting worker pid=23144 on localhost:11787 at 06:38:02.774
+starting worker pid=17900 on localhost:11787 at 06:38:02.893
+starting worker pid=22044 on localhost:11787 at 06:38:03.012
+There were 13 warnings (use warnings() to see them)
+There were 15 warnings (use warnings() to see them)There were 17 warnings (use warnings() to see them)
+ere were 16 warnings (use warnings() to see them)
+
+starting worker pid=4184 on localhost:11787 at 06:38:25.072
+starting worker pid=24060 on localhost:11787 at 06:38:25.193
+starting worker pid=24280 on localhost:11787 at 06:38:25.310
+starting worker pid=20832 on localhost:11787 at 06:38:25.426
+starting worker pid=19516 on localhost:11787 at 06:38:25.545
+There were 17 warnings (use warnings() to see them)
+There were 13 warnings (use warnings() to see them)
+ere were 14 warnings (use warnings() to see them)There were 14 warnings (use warnings() to see them)
+
+starting worker pid=9284 on localhost:11787 at 06:40:23.813
+starting worker pid=17600 on localhost:11787 at 06:40:23.934
+starting worker pid=22836 on localhost:11787 at 06:40:24.056
+starting worker pid=18600 on localhost:11787 at 06:40:24.172
+starting worker pid=14156 on localhost:11787 at 06:40:24.293
 Error in unserialize(node$con) : error reading from connection
 Calls: <Anonymous> ... doTryCatch -> recvData -> recvData.SOCKnode -> unserialize
 Error in unserialize(node$con) : error reading from connection
 Calls: <Anonymous> ... doTryCatch -> recvData -> recvData.SOCKnode -> unserialize
-In addition: Warning message:
+e -> unserialize
+Execution halted
+starting worker pid=19804 on localhost:11787 at 06:40:49.490
+starting worker pid=996 on localhost:11787 at 06:40:49.613
+starting worker pid=24532 on localhost:11787 at 06:40:49.733
+starting worker pid=13008 on localhost:11787 at 06:40:49.855
+starting worker pid=22640 on localhost:11787 at 06:40:49.975
+Warning message:
+Warning message:
 replacing previous import 'gmm::checkConv' by 'lme4::checkConv' when loading 'MrQAP' 
-Error in unserialize(node$con) : error reading from connection
-Calls: <Anonymous> ... doTryCatch -> recvData -> recvData.SOCKnode -> unserialize
-Error in unserialize(node$con) : error reading from connection
-Calls: <Anonymous> ... doTryCatch -> recvData -> recvData.SOCKnode -> unserialize
-In addition: In addition: Warning message:
+replacing previous import 'gmm::checkConv' by 'lme4::checkConv' when loading 'MrQAP' 
+starting worker pid=14552 on localhost:11994 at 07:28:59.702
+starting worker pid=26060 on localhost:11994 at 07:28:59.907
+starting worker pid=26488 on localhost:11994 at 07:29:00.099
+starting worker pid=6108 on localhost:11994 at 07:29:00.293
+starting worker pid=24476 on localhost:11994 at 07:29:00.503
+Warning message:
 replacing previous import 'gmm::checkConv' by 'lme4::checkConv' when loading 'MrQAP' 
 Warning message:
 replacing previous import 'gmm::checkConv' by 'lme4::checkConv' when loading 'MrQAP' 
-Execution halted
-Execution halted
+Warning message:
+Warning message:
+ import 'gmm::checkConv' by 'lme4::checkConv' when loading 'MrQAP' 
 Warning message:
 replacing previous import 'gmm::checkConv' by 'lme4::checkConv' when loading 'MrQAP' 
-Execution halted
-Error in unserialize(node$con) : error reading from connection
-Calls: <Anonymous> ... doTryCatch -> recvData -> recvData.SOCKnode -> unserialize
-In addition: Warning message:
 replacing previous import 'gmm::checkConv' by 'lme4::checkConv' when loading 'MrQAP' 
-Execution halted
-starting worker pid=10300 on localhost:11820 at 14:19:05.221
-starting worker pid=13944 on localhost:11820 at 14:19:05.435
-starting worker pid=6840 on localhost:11820 at 14:19:05.708
-starting worker pid=4940 on localhost:11820 at 14:19:05.920
-starting worker pid=30396 on localhost:11820 at 14:19:06.138
-  location yv nv sv rv          v           w           z
-1        2  4  1  2  1 -0.6305268  0.04902973  0.06681561
-2        3 12  1  3  1  0.7360508 -1.36832259  2.66286064
-3        4 12  1  4  1  1.7459475  0.58968225  0.75489771
-4        5 10  1  5  1 -1.0811004  0.23822810  0.57500600
-5        6 17  1  6  1  0.1083490 -0.44337314 -1.18739088
-6        7  4  1  7  1 -1.4216905  0.81238226  0.75105229
-  location yv nv sv rv          v           w           z
-1        2 18  1  2  1 -0.6305268  0.04902973  0.06681561
-2        3  4  1  3  1  0.7360508 -1.36832259  2.66286064
-3        4 14  1  4  1  1.7459475  0.58968225  0.75489771
-4        5 10  1  5  1 -1.0811004  0.23822810  0.57500600
-5        6  1  1  6  1  0.1083490 -0.44337314 -1.18739088
-6        7 14  1  7  1 -1.4216905  0.81238226  0.75105229
-  location yv nv sv rv          v           w           z
-1        2 20  1  2  1 -0.6305268  0.04902973  0.06681561
-2        3  4  1  3  1  0.7360508 -1.36832259  2.66286064
-3        4  9  1  4  1  1.7459475  0.58968225  0.75489771
-4        5  4  1  5  1 -1.0811004  0.23822810  0.57500600
-5        6 12  1  6  1  0.1083490 -0.44337314 -1.18739088
-6        7 14  1  7  1 -1.4216905  0.81238226  0.75105229
-  location yv nv sv rv          v           w           z
-1        2 10  1  2  1 -0.6305268  0.04902973  0.06681561
-2        3 20  1  3  1  0.7360508 -1.36832259  2.66286064
-3        4  1  1  4  1  1.7459475  0.58968225  0.75489771
-4        5  8  1  5  1 -1.0811004  0.23822810  0.57500600
-5        6  7  1  6  1  0.1083490 -0.44337314 -1.18739088
-6        7  6  1  7  1 -1.4216905  0.81238226  0.75105229
-  location yv nv sv rv          v           w           z
-1        2  4  1  2  1 -0.6305268  0.04902973  0.06681561
-2        3 18  1  3  1  0.7360508 -1.36832259  2.66286064
-3        4 15  1  4  1  1.7459475  0.58968225  0.75489771
-4        5  1  1  5  1 -1.0811004  0.23822810  0.57500600
-5        6  6  1  6  1  0.1083490 -0.44337314 -1.18739088
-6        7  4  1  7  1 -1.4216905  0.81238226  0.75105229
+starting worker pid=22540 on localhost:11095 at 07:47:22.811
+starting worker pid=8592 on localhost:11095 at 07:47:23.036
+starting worker pid=15496 on localhost:11095 at 07:47:23.205
+starting worker pid=12092 on localhost:11095 at 07:47:23.425
+starting worker pid=15272 on localhost:11095 at 07:47:23.627
+Warning message:
+Warning message:
+ import 'gmm::checkConv' by 'lme4::checkConv' when loading 'MrQAP' 
+replacing previous import 'gmm::checkConv' by 'lme4::checkConv' when loading 'MrQAP' 
+replacing previous import 'gmm::checkConv' by 'lme4::checkConv' when loading 'MrQAP' 
+replacing previous import 'gmm::checkConv' by 'lme4::checkConv' when loading 'MrQAP' 
+replacing previous import 'gmm::checkConv' by 'lme4::checkConv' when loading 'MrQAP' 

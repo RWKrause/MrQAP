@@ -99,30 +99,27 @@ QAPglmPermEst <- function(i,
       }
     } else {
       if (family. == 'binomial') {
-        pm <- gmm(logit_moments,
-                  x = list(y = pred$yv,
-                           x = cbind(1,as.matrix(pred[,names(xRm.)]))),
-                  t0 = rnorm(nx + 1),
-                  wmatrix = "optimal",
-                  vcov = "MDS",
-                  optfct = "nlminb",
-                  control = list(eval.max = 10000))
+        pm <- gmm::gmm(logit_moments,
+                       x = list(y = pred$yv,
+                                x = cbind(1,as.matrix(pred[,names(xRm.)]))),
+                       t0 = rnorm(nx + 1),
+                       wmatrix = "optimal",
+                       vcov = "MDS",
+                       optfct = "nlminb",
+                       control = list(eval.max = 10000))
         resid <- logit_resid(pm)
 
       } else if (family. == 'poisson') {
-        print(head(pred))
-        pm <- gmm(poisson_moments,
-                  x = list(y = pred$yv,
-                           x = cbind(1,as.matrix(pred[,names(xRm.)]))),
-                  t0 = rnorm(nx + 1),
-                  wmatrix = "optimal",
-                  vcov = "MDS",
-                  optfct = "nlminb",
-                  control = list(eval.max = 10000))
-        print(2)
+        pm <- gmm::gmm(poisson_moments,
+                       x = list(y = pred$yv,
+                                x = cbind(1,as.matrix(pred[,names(xRm.)]))),
+                       t0 = rnorm(nx + 1),
+                       wmatrix = "optimal",
+                       vcov = "MDS",
+                       optfct = "nlminb",
+                       control = list(eval.max = 10000))
 
         resid <- poisson_resid(pm)
-        print(3)
 
       }
 
