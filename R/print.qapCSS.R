@@ -5,20 +5,13 @@
 #' @docType methods
 #'
 #' @param x list; an \code{R} object of class \code{QAPCSS} returned by \code{QAPcss()}.
-#'
-#' @param print_b logical; Shall p-values derived from parameter comparisons also be returned or only those derived from T-values (which is more accurate in most cases). Default FALSE
-#'
-#' @param print_random logical; Shall all random intercepts be returned? Default FALSE
 #' @param ... Potential other parameters to be passed to lower level functions
 #'
 #' @returns Prints a results table for a \code{QAPcss()} model.
 #' @export
 #'
 
-print.QAPCSS <- function(x,
-                          print_b = FALSE,
-                          print_random = FALSE,
-                          ...) {
+print.QAPCSS <- function(x, ...) {
   if (x$family != 'multinom') {
     if (!any(x$random)) {
       cat("\nGeneralized Linear Network Model for CSS\n\n")
@@ -30,18 +23,18 @@ print.QAPCSS <- function(x,
     cat('\nThe reference group was', format(paste0(x$reference,'.')))
   }
 
-    if (!is.null(x$groups)) {
-      cat("\nPermutations were performed within groups only.")
-    }
+  if (!is.null(x$groups)) {
+    cat("\nPermutations were performed within groups only.")
+  }
 
-    if (x$nullhyp == 'qapy') {
-      cat("\nThe outcome array Y was permuted",format(x$reps),'times.')
-    }
-    if (x$nullhyp == 'qapspp') {
-      cat("\nSignificance was estimated using Dekker's")
-      cat("\n  'semi-partialling plus' procedure with",
-          format(x$reps),'permutations.')
-    }
+  if (x$nullhyp == 'qapy') {
+    cat("\nThe outcome array Y was permuted",format(x$reps),'times.')
+  }
+  if (x$nullhyp == 'qapspp') {
+    cat("\nSignificance was estimated using Dekker's")
+    cat("\n  'semi-partialling plus' procedure with",
+        format(x$reps),'permutations.')
+  }
 
   if (x$robust_se) {
     cat("\nT-values are based on robust standard errors.")
@@ -58,11 +51,7 @@ print.QAPCSS <- function(x,
 
   if (x$family != 'multinom') {
     if (is.null(x$comp)) {
-      glm_tab(x,
-              print_b = print_b,
-              print_random = print_random,
-              nullhyp = x$nullhyp,
-              comp = x$comp)
+      glm_tab(x, comp = x$comp)
     } else {
       nn <- names(x)[!(names(x) %in% c("nullhyp",
                                        "family",
@@ -74,30 +63,26 @@ print.QAPCSS <- function(x,
                                        "random",
                                        "robust_se"))]
       for (mod in 1:length(x$comp)) {
-        glm_tab(x[[nn[mod]]],
-                print_b = print_b,
-                print_random = print_random,
-                nullhyp = x$nullhyp,
-                comp = x$comp[[mod]])
+        glm_tab(x, comp = names(x$comp)[[mod]])
       }
     }
 
   } else {
 
     cat("\n\nCoefficients:\n\n")
-    for (option in 1:nrow(x$coefficients)) {
-      cat(format(paste0('-- ',rownames(x$coefficients)[option],'\n')))
+    for (option in 1:nrow(x$base$coefficients)) {
+      cat(format(paste0('-- ',rownames(x$base$coefficients)[option],'\n')))
 
-      cmat <- matrix(NA, nrow = ncol(x$coefficients), ncol = 4)
+      cmat <- matrix(NA, nrow = ncol(x$base$coefficients), ncol = 4)
       cmat[,1] <- as.vector(format(as.numeric(x$coefficients[option,])))
-      cmat[,2] <- as.vector(format(x$lower[option + nrow(x$coefficients),]))
-      cmat[,3] <- as.vector(format(x$larger[option + nrow(x$coefficients),]))
-      cmat[,4] <- as.vector(format(x$abs[option + nrow(x$coefficients),]))
+      cmat[,2] <- as.vector(format(x$lower[option + nrow(x$base$coefficients),]))
+      cmat[,3] <- as.vector(format(x$larger[option + nrow(x$base$coefficients),]))
+      cmat[,4] <- as.vector(format(x$abs[option + nrow(x$base$coefficients),]))
       if (x$nullhyp == 'qapspp') {
         cmat[1,2:4] <- '*'
       }
       colnames(cmat) <- c("Estimate", "Pr(<=t)", "Pr(>=t)", "Pr(>=|t|)")
-      rownames(cmat) <- colnames(x$coefficients)
+      rownames(cmat) <- colnames(x$base$coefficients)
       print.table(cmat)
       cat("\n\n")
 
@@ -108,8 +93,8 @@ print.QAPCSS <- function(x,
       cat("\n* Significance test for the intercept is undefined with qapspp.\n")
     }
 
-    cat("\nAIC:", format(AIC(x$simple_fit)))
-    cat("\nBIC:", format(BIC(x$simple_fit)))
+    cat("\nAIC of base model:", format(AIC(x$base$base_model)))
+    cat("\nBIC of base model:", format(BIC(x$base$base_model)))
     cat("\n")
   }
 }
