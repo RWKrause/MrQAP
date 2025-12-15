@@ -114,12 +114,15 @@ QAPcss <- function(y,
   rir <- random_intercept_receiver
   RIO <- random_intercept_other
 
+
+
   if (!is.null(RIO)) {
     rio <- TRUE
   } else {
     rio <- FALSE
   }
 
+  rand <- any(c(rip, ris, rir, rio, rin))
 
 
 
@@ -301,7 +304,6 @@ QAPcss <- function(y,
     }
   }
 
-  rand <- any(c(rip, ris, rir, rio, rin))
 
 
   mod <- 'yv ~ 1'
