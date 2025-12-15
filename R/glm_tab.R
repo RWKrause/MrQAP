@@ -52,12 +52,9 @@ glm_tab <- function(x,
       cat("\n* Significance test for the intercept is undefined with qapspp.\n")
     }
 
-
     cat("\nAIC of base model:", format(AIC(x$base$base_model)))
     cat("\nBIC of base model:", format(BIC(x$base$base_model)))
     cat("\n")
   }
-
-
 }
 
