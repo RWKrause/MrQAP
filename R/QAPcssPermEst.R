@@ -173,6 +173,7 @@ QAPcssPermEst <- function(i,
                       use_robust_errors = use_robust_errors.)
   } else {
     xresL <- vector(mode = 'list', length = length(comp.))
+    names(xresL) <- names(comp.)
     for (k in 1:length(comp.)) {
       predK <- pred[pred$yv %in% comp.[[k]],]
       predK$yv <- ifelse(predK$yv == comp.[[k]][1],0,1)
