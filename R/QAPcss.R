@@ -208,14 +208,14 @@ QAPcss <- function(y,
   }
 
 
-
-  if (!all(sym) && mode == 'undirected') {
-    warning('Mismatch between arguments and data.\n',
-            ' mode is undirected but y is not symmetric for every perceiver.\n',
-            ' y will be treated as undirected.\n',
-            'The upper triangle will be used - tri.upper().')
-    mode <- 'undirected'
-  }
+#
+ # if (!all(sym) && mode == 'undirected') {
+ #   warning('Mismatch between arguments and data.\n',
+ #           ' mode is undirected but y is not symmetric for every perceiver.\n',
+ #           ' y will be treated as undirected.\n',
+ #           'The upper triangle will be used - tri.upper().')
+ #   mode <- 'undirected'
+ # }
 
   if (mode == 'undirected' && (ris || rir)) {
     warning('Mismatch between arguments/data.\n',
