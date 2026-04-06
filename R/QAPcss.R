@@ -208,14 +208,6 @@ QAPcss <- function(y,
   }
 
 
-#
- # if (!all(sym) && mode == 'undirected') {
- #   warning('Mismatch between arguments and data.\n',
- #           ' mode is undirected but y is not symmetric for every perceiver.\n',
- #           ' y will be treated as undirected.\n',
- #           'The upper triangle will be used - tri.upper().')
- #   mode <- 'undirected'
- # }
 
   if (mode == 'undirected' && (ris || rir)) {
     warning('Mismatch between arguments/data.\n',
@@ -425,8 +417,8 @@ QAPcss <- function(y,
 
     if (family != 'multinom' && is.null(comparison)) {
       fit$lower  <- matrix(NA, nrow = 2,
-                           ncol = length(fit$coefficients))
-      colnames(fit$lower) <- names(fit$coefficients)
+                           ncol = length(fit$base$coefficients))
+      colnames(fit$lower) <- names(fit$base$coefficients)
 
       fit$larger <- fit$abs <- fit$lower
     } else if (!is.null(comparison)) {
@@ -449,8 +441,8 @@ QAPcss <- function(y,
       }
       fit$lower  <- matrix(NA,
                            nrow = 2 * (ncat - 1),
-                           ncol = ncol(coefficients(fit$base_model)))
-      colnames(fit$lower) <- names(fit$coefficients)
+                           ncol = length(fit$base$coefficients))
+      colnames(fit$lower) <- names(fit$base$coefficients)
       fit$larger <- fit$abs <- fit$lower
     }
 
@@ -509,9 +501,9 @@ QAPcss <- function(y,
       if (is.null(comparison)) {
         resL <- unlist(res, recursive = FALSE)
 
-        fit$lower  <- Reduce(f = '+', resL[names(resL) == 'lower'],  0)/reps
-        fit$larger <- Reduce(f = '+', resL[names(resL) == 'larger'], 0)/reps
-        fit$abs    <- Reduce(f = '+', resL[names(resL) == 'abs'],    0)/reps
+        fit$lower[,xi]  <- Reduce(f = '+', resL[names(resL) == 'lower'], 0)/reps
+        fit$larger[,xi] <- Reduce(f = '+', resL[names(resL) == 'larger'],0)/reps
+        fit$abs[,xi]    <- Reduce(f = '+', resL[names(resL) == 'abs'],   0)/reps
       } else {
         for (k in 1:length(comparison)) {
           resL <- unlist(unlist(res, recursive = FALSE),recursive = FALSE)

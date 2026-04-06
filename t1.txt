@@ -1,0 +1,20 @@
+starting worker pid=18720 on localhost:11304 at 03:31:14.003
+starting worker pid=14200 on localhost:11304 at 03:31:14.190
+starting worker pid=25136 on localhost:11304 at 03:31:14.360
+starting worker pid=14292 on localhost:11304 at 03:31:14.539
+starting worker pid=25000 on localhost:11304 at 03:31:14.727
+Warning message:
+replacing previous import 'gmm::checkConv' by 'lme4::checkConv' when loading 'MrQAP' 
+Warning message:
+replacing previous import 'gmm::checkConv' by 'lme4::checkConv' when loading 'MrQAP' 
+Warning message:
+replacing previous import 'gmm::checkConv' by 'lme4::checkConv' when loading 'MrQAP' 
+Warning message:
+Warning message:
+ import 'gmm::checkConv' by 'lme4::checkConv' when loading 'MrQAP' 
+replacing previous import 'gmm::checkConv' by 'lme4::checkConv' when loading 'MrQAP' 
+starting worker pid=5332 on localhost:11304 at 03:32:29.793
+starting worker pid=8976 on localhost:11304 at 03:32:29.962
+starting worker pid=22688 on localhost:11304 at 03:32:30.147
+starting worker pid=24580 on localhost:11304 at 03:32:30.321
+starting worker pid=8164 on localhost:11304 at 03:32:30.501
