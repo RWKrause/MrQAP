@@ -114,12 +114,15 @@ QAPcss <- function(y,
   rir <- random_intercept_receiver
   RIO <- random_intercept_other
 
+
+
   if (!is.null(RIO)) {
     rio <- TRUE
   } else {
     rio <- FALSE
   }
 
+  rand <- any(c(rip, ris, rir, rio, rin))
 
 
 
@@ -206,14 +209,6 @@ QAPcss <- function(y,
 
 
 
-  if (!all(sym) && mode == 'undirected') {
-    warning('Mismatch between arguments and data.\n',
-            ' mode is undirected but y is not symmetric for every perceiver.\n',
-            ' y will be treated as undirected.\n',
-            'The upper triangle will be used - tri.upper().')
-    mode <- 'undirected'
-  }
-
   if (mode == 'undirected' && (ris || rir)) {
     warning('Mismatch between arguments/data.\n',
             'y is undirected and random intercepts for sender and/or receiver',
@@ -260,6 +255,7 @@ QAPcss <- function(y,
                           mode = mode)
     pred <- cssd$pred
     valid <- cssd$valid
+    rm(cssd)
   } else {
     pred_list <- vector(mode = 'list', length = length(y))
     valid_list <- vector(mode = 'list', length = length(y))
@@ -301,7 +297,6 @@ QAPcss <- function(y,
     }
   }
 
-  rand <- any(c(rip, ris, rir, rio, rin))
 
 
   mod <- 'yv ~ 1'
@@ -343,9 +338,9 @@ QAPcss <- function(y,
   mod <- as.formula(mod)
 
   # baseline estimate
-
+  fit <- list()
   if (is.null(comparison)) {
-    fit <- fit_base(mod = mod,
+    fit$base <- fit_base(mod = mod,
                     rand = rand,
                     family = family,
                     pred = pred,
@@ -353,13 +348,13 @@ QAPcss <- function(y,
                     y = y,
                     use_robust_errors = use_robust_errors)
   } else {
-    fit <- vector(mode = 'list', length = length(comparison))
-    names(fit) <- names(comparison)
+    fit$base <- vector(mode = 'list', length = length(comparison))
+    names(fit$base) <- names(comparison)
     for (k in 1:length(comparison)) {
       predK <- pred[pred$yv %in% comparison[[k]],]
       predK$yv <- ifelse(predK$yv == comparison[[k]][1],0,1)
 
-      fit[[k]] <- fit_base(mod = mod,
+      fit$base[[k]] <- fit_base(mod = mod,
                            rand = rand,
                            family = family,
                            pred = predK,
@@ -384,7 +379,7 @@ QAPcss <- function(y,
                      diag. = diag,
                      rand. = rand,
                      family. = family,
-                     fit. = fit,
+                     fit. = fit$base,
                      comp. = comparison,
                      RIO. = RIO,
                      use_robust_errors. = use_robust_errors,
@@ -401,12 +396,19 @@ QAPcss <- function(y,
       fit$larger <- Reduce(f = '+', resL[names(resL) == 'larger'], 0)/reps
       fit$abs    <- Reduce(f = '+', resL[names(resL) == 'abs'],    0)/reps
     } else {
-      for (k in 1:length(comparison)) {
-        resL <- unlist(res[[k]], recursive = FALSE)
+      fit$lower <- vector(mode = 'list', length = length(comparison))
+      names(fit$lower) <- names(comparison)
+      fit$abs <-  fit$larger <- fit$lower
+      resL <- unlist(unlist(res, recursive = FALSE),recursive = FALSE)
 
-        fit[[k]]$lower  <- Reduce(f = '+', resL[names(resL) == 'lower'], 0)/reps
-        fit[[k]]$larger <- Reduce(f = '+', resL[names(resL) == 'larger'],0)/reps
-        fit[[k]]$abs    <- Reduce(f = '+', resL[names(resL) == 'abs'],   0)/reps
+      for (k in 1:length(comparison)) {
+        cn <- names(comparison)[k]
+        fit$lower[[k]]  <- Reduce(f = '+', resL[names(resL) == paste0(
+          cn,'.lower')],0)/reps
+        fit$larger[[k]] <- Reduce(f = '+', resL[names(resL) == paste0(
+          cn,'.larger')],0)/reps
+        fit$abs[[k]]    <- Reduce(f = '+', resL[names(resL) == paste0(
+          cn,'.abs')],0)/reps
       }
     }
 
@@ -415,17 +417,20 @@ QAPcss <- function(y,
 
     if (family != 'multinom' && is.null(comparison)) {
       fit$lower  <- matrix(NA, nrow = 2,
-                           ncol = length(fit$coefficients))
-      colnames(fit$lower) <- names(fit$coefficients)
+                           ncol = length(fit$base$coefficients))
+      colnames(fit$lower) <- names(fit$base$coefficients)
 
       fit$larger <- fit$abs <- fit$lower
     } else if (!is.null(comparison)) {
+      fit$lower <- vector(mode = 'list', length = length(comparison))
+      names(fit$lower) <- names(comparison)
+      fit$abs <-  fit$larger <- fit$lower
       for (k in 1:length(comparison)) {
-        fit[[k]]$lower  <- matrix(NA, nrow = 2,
-                                  ncol = length(fit[[k]]$coefficients))
-        colnames(fit[[k]]$lower) <- names(fit[[k]]$coefficients)
+        fit$lower[[k]]  <- matrix(NA, nrow = 2,
+                                  ncol = length(fit$base[[k]]$coefficients))
+        colnames(fit$lower[[k]]) <- names(fit$base[[k]]$coefficients)
 
-        fit[[k]]$larger <- fit[[k]]$abs <- fit[[k]]$lower
+        fit$larger[[k]] <- fit$abs[[k]] <- fit$lower[[k]]
       }
 
     } else {
@@ -436,8 +441,8 @@ QAPcss <- function(y,
       }
       fit$lower  <- matrix(NA,
                            nrow = 2 * (ncat - 1),
-                           ncol = ncol(coefficients(fit$base_model)))
-      colnames(fit$lower) <- names(fit$coefficients)
+                           ncol = length(fit$base$coefficients))
+      colnames(fit$lower) <- names(fit$base$coefficients)
       fit$larger <- fit$abs <- fit$lower
     }
 
@@ -483,7 +488,7 @@ QAPcss <- function(y,
                        diag. = diag,
                        rand. = rand,
                        groups. = groups,
-                       fit. = fit,
+                       fit. = fit$base,
                        comp. = comparison,
                        family. = family,
                        RIO. = RIO,
@@ -496,25 +501,22 @@ QAPcss <- function(y,
       if (is.null(comparison)) {
         resL <- unlist(res, recursive = FALSE)
 
-        fit$lower  <- Reduce(f = '+', resL[names(resL) == 'lower'],  0)/reps
-        fit$larger <- Reduce(f = '+', resL[names(resL) == 'larger'], 0)/reps
-        fit$abs    <- Reduce(f = '+', resL[names(resL) == 'abs'],    0)/reps
+        fit$lower[,xi]  <- Reduce(f = '+', resL[names(resL) == 'lower'], 0)/reps
+        fit$larger[,xi] <- Reduce(f = '+', resL[names(resL) == 'larger'],0)/reps
+        fit$abs[,xi]    <- Reduce(f = '+', resL[names(resL) == 'abs'],   0)/reps
       } else {
         for (k in 1:length(comparison)) {
+          resL <- unlist(unlist(res, recursive = FALSE),recursive = FALSE)
 
-          resLL <- lapply(res, function(x){x[[k]]})
-
-          resL <- unlist(resLL, recursive = FALSE)
-
-          fit[[k]]$lower[,xi]  <- Reduce(f = '+',
-                                          resL[names(resL) == 'lower'],
-                                          0)/reps
-          fit[[k]]$larger[,xi] <- Reduce(f = '+',
-                                          resL[names(resL) == 'larger'],
-                                          0)/reps
-          fit[[k]]$abs[,xi]    <- Reduce(f = '+',
-                                          resL[names(resL) == 'abs'],
-                                          0)/reps
+          for (k in 1:length(comparison)) {
+            cn <- names(comparison)[k]
+            fit$lower[[k]][,xi]  <- Reduce(f = '+', resL[names(resL) == paste0(
+              cn,'.lower')],0)/reps
+            fit$larger[[k]][,xi] <- Reduce(f = '+', resL[names(resL) == paste0(
+              cn,'.larger')],0)/reps
+            fit$abs[[k]][,xi]    <- Reduce(f = '+', resL[names(resL) == paste0(
+              cn,'.abs')],0)/reps
+          }
         }
       }
     }

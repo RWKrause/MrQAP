@@ -5,14 +5,10 @@
 \alias{print.QAPCSS}
 \title{Print QAPcss() results}
 \usage{
-\method{print}{QAPCSS}(x, print_b = FALSE, print_random = FALSE, ...)
+\method{print}{QAPCSS}(x, ...)
 }
 \arguments{
 \item{x}{list; an \code{R} object of class \code{QAPCSS} returned by \code{QAPcss()}.}
-
-\item{print_b}{logical; Shall p-values derived from parameter comparisons also be returned or only those derived from T-values (which is more accurate in most cases). Default FALSE}
-
-\item{print_random}{logical; Shall all random intercepts be returned? Default FALSE}
 
 \item{...}{Potential other parameters to be passed to lower level functions}
 }

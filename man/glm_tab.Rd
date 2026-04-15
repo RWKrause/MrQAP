@@ -4,18 +4,12 @@
 \alias{glm_tab}
 \title{Internal auxiliary function to help plot QAPcss() output}
 \usage{
-glm_tab(x, print_b = print_b, print_random = print_random, comp, nullhyp)
+glm_tab(x, comp)
 }
 \arguments{
 \item{x}{list; an \code{R} object of class \code{QAPCSS} returned by \code{QAPcss(...)}.}
 
-\item{print_b}{logical; Shall p-values derived from parameter comparisons also be returned or only those derived from T-values (which is more accurate in most cases). Default FALSE}
-
-\item{print_random}{logical; Shall all random intercepts be returned? Default FALSE}
-
 \item{comp}{list; see \code{QAPcss(...)}}
-
-\item{nullhyp}{character or numeric; see \code{QAPcss(...)}}
 }
 \value{
 Prints the results table.

@@ -36,6 +36,17 @@ make_css_data <- function(y,
     valid[is.na(x[[var]])] <- FALSE
   }
 
+  if (mode == 'undirected') {
+    for (i in 1:n) {
+      y[,,i][lower.tri(y[,,i])] <- NA
+      valid[,,i][lower.tri(valid[,,i])] <- FALSE
+      for (var in 1:nx) {
+        x[[var]][,,i][lower.tri(x[[var]][,,i])] <- NA
+      }
+    }
+  }
+
+
   y[!valid] <- NA
 
   for (var in 1:nx) {

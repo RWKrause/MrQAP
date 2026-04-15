@@ -43,6 +43,12 @@ QAPcssPermEst <- function(i,
   sufficient_data <- FALSE
   trial <- 0
 
+  if (!is.null(RIO.)) {
+    rio <- TRUE
+  } else {
+    rio <- FALSE
+  }
+
   y_cat <- na.omit(unique(as.vector(unlist(y.))))
 
   while (!sufficient_data && trial < 10000) {
@@ -59,6 +65,7 @@ QAPcssPermEst <- function(i,
                             x = x.,
                             nets = 1,
                             RIO = RIO.,
+                            rio = rio,
                             diag = diag.,
                             mode = mode.)$pred
     } else {
@@ -80,6 +87,7 @@ QAPcssPermEst <- function(i,
                                          nets = gr,
                                          RIO = RIO.[[gr]],
                                          diag = diag.,
+                                         rio = rio,
                                          mode = mode.)$pred
       }
 
@@ -165,6 +173,7 @@ QAPcssPermEst <- function(i,
                       use_robust_errors = use_robust_errors.)
   } else {
     xresL <- vector(mode = 'list', length = length(comp.))
+    names(xresL) <- names(comp.)
     for (k in 1:length(comp.)) {
       predK <- pred[pred$yv %in% comp.[[k]],]
       predK$yv <- ifelse(predK$yv == comp.[[k]][1],0,1)
