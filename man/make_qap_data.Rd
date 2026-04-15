@@ -4,7 +4,7 @@
 \alias{make_qap_data}
 \title{Internal auxiliary function to make QAPglm() data}
 \usage{
-make_qap_data(y, x, g, RIO, diag, mode, net, perm = FALSE, xi = NULL)
+make_qap_data(y, x, g, diag, mode, net, perm = FALSE, xi = NULL)
 }
 \arguments{
 \item{y}{matrix; same as in \code{QAPglm()}}
@@ -12,8 +12,6 @@ make_qap_data(y, x, g, RIO, diag, mode, net, perm = FALSE, xi = NULL)
 \item{x}{matrix or list; same as in \code{QAPglm()}}
 
 \item{g}{vector; created in same as in \code{QAPglm()} from groups}
-
-\item{RIO}{matrix or list; same as \code{random_intercept_other} in \code{QAPglm()}}
 
 \item{diag}{logical; same as in \code{QAPglm()}}
 
@@ -24,6 +22,8 @@ make_qap_data(y, x, g, RIO, diag, mode, net, perm = FALSE, xi = NULL)
 \item{perm}{logical; should a permutation be performed}
 
 \item{xi}{integer; either \code{NULL} or the number of the residualized variable in \code{x}}
+
+\item{RIO}{matrix or list; same as \code{random_intercept_other} in \code{QAPglm()}}
 }
 \value{
 data in the format to be used in \code{QAPglm()} or \code{QAPglmPermEst}

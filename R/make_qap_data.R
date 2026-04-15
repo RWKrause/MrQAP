@@ -15,7 +15,6 @@
 make_qap_data <- function(y,
                           x,
                           g,
-                          RIO,
                           diag,
                           mode,
                           net,
@@ -58,17 +57,6 @@ make_qap_data <- function(y,
   rv <- t(matrix(1:n,n,n))
   rv[!valid] <- NA
   pred$rv <- as.vector(rv)[vv]
-
-
-  if (!is.null(RIO)) {
-    if (!is.list(RIO)) {
-      pred$ov <- as.factor(as.vector(RIO)[vv])
-    } else {
-      for (i in 1:length(RIO)) {
-        pred[[paste0('ov',i)]] <- as.factor(as.vector(RIO[[i]])[vv])
-      }
-    }
-  }
 
   for (var in c(1:nx)) {
     pred[[names(x)[var]]] <- as.vector(x[[var]])[vv]

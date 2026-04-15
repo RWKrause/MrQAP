@@ -6,7 +6,7 @@
 \usage{
 QAPglmPermEst(
   i,
-  y.,
+  df,
   mode.,
   diag.,
   mod.,
@@ -17,15 +17,12 @@ QAPglmPermEst(
   RIO.,
   use_robust_errors.,
   xi. = NULL,
-  xRm. = NULL,
   same_x_4_all_y.,
   rand.
 )
 }
 \arguments{
 \item{i}{NULL; iterator of parLapply}
-
-\item{y.}{matrix or list; same as \code{y} in \code{QAPglm()}}
 
 \item{mode.}{character; same as \code{mode} in \code{QAPglm()}}
 
@@ -45,13 +42,15 @@ QAPglmPermEst(
 
 \item{xi.}{integer; either \code{NULL} or the number of the residualized variable in \code{x}}
 
-\item{xRm.}{matrix or list; same as \code{x} in \code{QAPglm()}}
-
 \item{same_x_4_all_y.}{matrix or list; same as \code{y} in \code{QAPglm()}}
 
 \item{rand.}{logical; TRUE if any random intercepts are requested}
 
+\item{y.}{matrix or list; same as \code{y} in \code{QAPglm()}}
+
 \item{estimator}{character; same as \code{estimator} in \code{QAPglm()}}
+
+\item{xRm.}{matrix or list; same as \code{x} in \code{QAPglm()}}
 }
 \value{
 Results for one permutation.

@@ -113,7 +113,7 @@
 #' @import parallel
 #' @import lme4
 #' @import gmm
-
+#' @import fixest
 
 QAPglm <- function(y,
                    x,
@@ -126,12 +126,16 @@ QAPglm <- function(y,
                    seed = NULL,
                    groups = NULL,
                    ncores = NULL,
+                   use_fixest = FALSE,
+                   fix_effects = NULL,
+                   fixest_se_cluster = NULL,
                    same_x_4_all_y = FALSE,
                    random_intercept_nets   = FALSE,
                    random_intercept_sender   = FALSE,
                    random_intercept_receiver = FALSE,
                    random_intercept_other = NULL,
                    use_robust_errors = FALSE,
+                   less_mem = FALSE,
                    error_file = NULL) {
 
   if (!is.list(y)) {
@@ -225,9 +229,25 @@ QAPglm <- function(y,
 
   mod <- 'yv ~ 1'
 
-  for (var in names(x)) {
-    mod <- paste(mod, var, sep = ' + ')
+  if (is.null(fix_effects)) {
+    for (var in names(x)) {
+      mod <- paste(mod, var, sep = ' + ')
+    }
+  } else {
+    for (var in names(x)) {
+      if (!(var %in% fix_effects)) {
+        mod <- paste(mod, var, sep = ' + ')
+      }
+      mod <- paste(mod,'|')
+      for (fe in fix_effects) {
+        mod <- paste(mod, fe, sep = ' + ')
+      }
+    }
   }
+
+
+
+
 
   rand_int <- ''
 
@@ -266,34 +286,50 @@ QAPglm <- function(y,
 
   if (!rand) {
     if (family == 'gaussian') {
-      base_model        <- lm(mod, data = pred)
-      fit$r.squared     <- summary(base_model)$r.squared
-      fit$adj.r.squared <- summary(base_model)$adj.r.squared
+      if (!use_fixest) {
+        base_model        <- lm(mod, data = pred)
+        fit$r.squared     <- summary(base_model)$pseudo_r2
+        fit$adj.r.squared <- summary(base_model)$pseudo_r2
+      } else {
+        base_model        <- fixest::feglm(mod,
+                                           data = pred,
+                                           family = "gaussian",
+                                           cluster = fixest_se_cluster)
+        fit$r.squared     <- summary(base_model)$r.squared
+        fit$adj.r.squared <- summary(base_model)$adj.r.squared
+      }
     } else {
       if (estimator == 'standard') {
-        base_model <- glm(mod, data = pred, family = family)
+        if (!use_fixest) {
+          base_model <- glm(mod, data = pred, family = family)
+        } else {
+          base_model <- fixest::feglm(mod,
+                                      data = pred,
+                                      family = family,
+                                      cluster = fixest_se_cluster)
+        }
         resid <- residuals(base_model)
       } else {
         if (family == 'binomial') {
-          base_model <- gmm(logit_moments,
-                            x = list(y = pred$yv,
-                                     x = cbind(1,as.matrix(pred[,names(x)]))),
-                            t0 = rnorm(nx + 1),
-                            wmatrix = "optimal",
-                            vcov = "MDS",
-                            optfct = "nlminb",
-                            control = list(eval.max = 10000))
+          base_model <- gmm::gmm(logit_moments,
+                                 x = list(y = pred$yv,
+                                          x = cbind(1,as.matrix(pred[,names(x)]))),
+                                 t0 = rnorm(nx + 1),
+                                 wmatrix = "optimal",
+                                 vcov = "MDS",
+                                 optfct = "nlminb",
+                                 control = list(eval.max = 10000))
           resid <- logit_resid(base_model)
 
         } else if (family == 'poisson') {
-          base_model <- gmm(poisson_moments,
-                            x = list(y = pred$yv,
-                                     x = cbind(1,as.matrix(pred[,names(x)]))),
-                            t0 = rnorm(nx + 1),
-                            wmatrix = "optimal",
-                            vcov = "MDS",
-                            optfct = "nlminb",
-                            control = list(eval.max = 10000))
+          base_model <- gmm::gmm(poisson_moments,
+                                 x = list(y = pred$yv,
+                                          x = cbind(1,as.matrix(pred[,names(x)]))),
+                                 t0 = rnorm(nx + 1),
+                                 wmatrix = "optimal",
+                                 vcov = "MDS",
+                                 optfct = "nlminb",
+                                 control = list(eval.max = 10000))
           resid <- poisson_resid(base_model)
         }
       }
@@ -438,7 +474,9 @@ QAPglm <- function(y,
   fit$mode <- mode
   fit$reps <- reps
   fit$groups <- unique(unlist(groups))
-  fit$simple_fit <- base_model
+  if (!less_mem) {
+    fit$simple_fit <- base_model
+  }
   fit$robust_se <- use_robust_errors
   fit$estimator <- estimator
 

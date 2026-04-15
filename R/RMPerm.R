@@ -9,13 +9,14 @@
 
 RMPerm <- function(m, groups = NULL, CSS = FALSE) {
 
+  if (is.list(m)) {
+    return(lapply(m, RMPerm, groups = groups))
+  }
+
   if (is.null(groups)) {
     groups <- rep(1,dim(m)[2])
   } else {
     groups <- as.character(groups)
-  }
-  if (is.list(m)) {
-    return(lapply(m, RMPerm, groups = groups))
   }
 
   if (length(dim(m)) == 2) {
