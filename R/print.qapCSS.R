@@ -1,100 +1,100 @@
 #' Print QAPcss() results
 #'
-#' This function prints results for \code{QAPcsss()}.
+#' @param x An object of class \code{QAPCSS}.
+#' @param ... Additional arguments (ignored).
 #'
-#' @docType methods
-#'
-#' @param x list; an \code{R} object of class \code{QAPCSS} returned by \code{QAPcss()}.
-#' @param ... Potential other parameters to be passed to lower level functions
-#'
-#' @returns Prints a results table for a \code{QAPcss()} model.
+#' @return Invisibly returns \code{x}.
 #' @export
-#'
 
 print.QAPCSS <- function(x, ...) {
-  if (x$family != 'multinom') {
+
+  # --- header ---
+  if (x$family != "multinom") {
     if (!any(x$random)) {
       cat("\nGeneralized Linear Network Model for CSS\n\n")
     } else {
       cat("\nGeneralized Linear Mixed Network Model for CSS fit by REML\n\n")
     }
   } else {
-    cat("\nMultinominal Choice Network Model for CSS\n\n")
-    cat('\nThe reference group was', format(paste0(x$reference,'.')))
+    cat("\nMultinomial Choice Network Model for CSS\n\n")
+    cat("The reference group was", format(paste0(x$reference, ".")), "\n")
   }
 
-  if (!is.null(x$groups)) {
-    cat("\nPermutations were performed within groups only.")
+  if (!is.null(x$estimator) && x$estimator == "gmm")
+    cat("Estimator: Generalized Method-of-Moments.\n")
+  if (!is.null(x$theta))
+    cat("Negative binomial dispersion (theta):", format(round(x$theta, 4)), "\n")
+  if (!is.null(x$zi_coefficients)) {
+    cat("Zero-inflation coefficients:\n")
+    cat("  ", paste(names(x$zi_coefficients),
+                    format(round(x$zi_coefficients, 4)),
+                    sep = " = ", collapse = ", "), "\n")
   }
 
-  if (x$nullhyp == 'qapy') {
-    cat("\nThe outcome array Y was permuted",format(x$reps),'times.')
-  }
-  if (x$nullhyp == 'qapspp') {
-    cat("\nSignificance was estimated using Dekker's")
-    cat("\n  'semi-partialling plus' procedure with",
-        format(x$reps),'permutations.')
+  if (!is.null(x$groups))
+    cat("Permutations were performed within groups only.\n")
+
+  if (x$nullhyp == "qapy")
+    cat("The outcome array Y was permuted", format(x$reps), "times.\n")
+  if (x$nullhyp == "qapspp") {
+    cat("Significance was estimated using Dekker's\n")
+    cat("  'semi-partialling plus' procedure with",
+        format(x$reps), "permutations.\n")
   }
 
-  if (x$robust_se) {
-    cat("\nT-values are based on robust standard errors.")
-  }
+  if (x$robust_se)
+    cat("T-values are based on robust standard errors.\n")
 
   if (x$diag) {
-    cat("\nDiagonal values (loops) were used in the estimation.",
-        "\n  Results may be biased because of that.")
+    cat("Diagonal values (loops) were used in the estimation.\n",
+        "  Results may be biased because of that.\n")
   } else {
-    cat("\nDiagonal values (loops) were ignored.")
+    cat("Diagonal values (loops) were ignored.\n")
   }
+  cat("The outcome was treated as", format(paste0(x$mode, ".")), "\n")
 
-  cat('\nThe outcome was treated as', format(paste0(x$mode,'.')))
-
-  if (x$family != 'multinom') {
+  # --- results ---
+  if (x$family != "multinom") {
     if (is.null(x$comp)) {
       glm_tab(x, comp = x$comp)
     } else {
-      nn <- names(x)[!(names(x) %in% c("nullhyp",
-                                       "family",
-                                       "groups",
-                                       "diag",
-                                       "mode",
-                                       "reps",
-                                       "comp",
-                                       "random",
-                                       "robust_se"))]
-      for (mod in 1:length(x$comp)) {
+      for (mod in seq_along(x$comp)) {
         glm_tab(x, comp = names(x$comp)[[mod]])
       }
     }
-
   } else {
+    cat("\nCoefficients:\n\n")
+    for (option in seq_len(nrow(x$base$coefficients))) {
+      cat(format(paste0("-- ", rownames(x$base$coefficients)[option], "\n")))
 
-    cat("\n\nCoefficients:\n\n")
-    for (option in 1:nrow(x$base$coefficients)) {
-      cat(format(paste0('-- ',rownames(x$base$coefficients)[option],'\n')))
-
-      cmat <- matrix(NA, nrow = ncol(x$base$coefficients), ncol = 4)
-      cmat[,1] <- as.vector(format(as.numeric(x$coefficients[option,])))
-      cmat[,2] <- as.vector(format(x$lower[option + nrow(x$base$coefficients),]))
-      cmat[,3] <- as.vector(format(x$larger[option + nrow(x$base$coefficients),]))
-      cmat[,4] <- as.vector(format(x$abs[option + nrow(x$base$coefficients),]))
-      if (x$nullhyp == 'qapspp') {
-        cmat[1,2:4] <- '*'
-      }
+      nc <- ncol(x$base$coefficients)
+      cmat <- matrix(NA, nrow = nc, ncol = 4)
+      row_idx <- option + nrow(x$base$coefficients)
+      cmat[, 1] <- format(as.numeric(x$base$coefficients[option, ]))
+      cmat[, 2] <- format(x$lower[row_idx, ])
+      cmat[, 3] <- format(x$larger[row_idx, ])
+      cmat[, 4] <- format(x$abs[row_idx, ])
+      if (x$nullhyp == "qapspp") cmat[1, 2:4] <- "*"
       colnames(cmat) <- c("Estimate", "Pr(<=t)", "Pr(>=t)", "Pr(>=|t|)")
       rownames(cmat) <- colnames(x$base$coefficients)
       print.table(cmat)
       cat("\n\n")
-
     }
 
-
-    if (x$nullhyp == 'qapspp') {
-      cat("\n* Significance test for the intercept is undefined with qapspp.\n")
-    }
+    if (x$nullhyp == "qapspp")
+      cat("* Significance test for the intercept is undefined with qapspp.\n")
 
     cat("\nAIC of base model:", format(AIC(x$base$base_model)))
     cat("\nBIC of base model:", format(BIC(x$base$base_model)))
     cat("\n")
   }
+
+  # --- confusion matrix ---
+  if (!is.null(x$confusion_matrix)) {
+    cat("\n")
+    print(x$confusion_matrix)
+  }
+
+  cat("\n")
+  invisible(x)
 }
