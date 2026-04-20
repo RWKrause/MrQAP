@@ -79,6 +79,7 @@ test_that("QAPglm works with fixest FE (binomial)", {
 # ============================================================
 
 test_that("QAPglm works with multinomial family", {
+  skip_if_not_installed("nnet")
   d <- make_ext_multinom()
   fit <- QAPglm(y ~ x1, data = d,
                 family = "multinom", nullhyp = "qapy",
@@ -88,6 +89,7 @@ test_that("QAPglm works with multinomial family", {
 })
 
 test_that("QAPglm multinomial with reference category", {
+  skip_if_not_installed("nnet")
   d <- make_ext_multinom()
   fit <- QAPglm(y ~ x1, data = d,
                 family = "multinom", nullhyp = "qapy",

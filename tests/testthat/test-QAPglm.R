@@ -173,6 +173,7 @@ make_test_data_zip <- function(n = 10, seed = 42) {
 
 # ---- negative binomial ----
 test_that("QAPglm runs with negbin family (standard)", {
+  skip_if_not_installed("MASS")
   d <- make_test_data_negbin()
   fit <- QAPglm(y ~ x1 + x2, data = d,
                 family = "negbin", nullhyp = "qapy",
@@ -184,6 +185,7 @@ test_that("QAPglm runs with negbin family (standard)", {
 })
 
 test_that("QAPglm runs with negbin family (GMM)", {
+  skip_if_not_installed("gmm")
   d <- make_test_data_negbin(n = 15, seed = 99)
   # Some permutations may fail numerically; expect warnings
   fit <- suppressWarnings(
@@ -197,6 +199,7 @@ test_that("QAPglm runs with negbin family (GMM)", {
 })
 
 test_that("print.QAPGLM shows dispersion for negbin", {
+  skip_if_not_installed("MASS")
   d <- make_test_data_negbin()
   fit <- QAPglm(y ~ x1, data = d, family = "negbin",
                 reps = 20, seed = 1)
@@ -216,6 +219,7 @@ test_that("QAPglm runs with zip family (standard)", {
 })
 
 test_that("QAPglm runs with zip family (GMM)", {
+  skip_if_not_installed("gmm")
   d <- make_test_data_zip(n = 15, seed = 99)
   fit <- suppressWarnings(
     QAPglm(y ~ x1 + x2, data = d,

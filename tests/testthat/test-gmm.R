@@ -155,6 +155,7 @@ test_that("zip_resid returns correct length", {
 # ============================================================
 
 test_that("QAPglm GMM works for binomial", {
+  skip_if_not_installed("gmm")
   d <- make_gmm_binary()
   fit <- suppressWarnings(
     QAPglm(y ~ x1 + x2, data = d,
@@ -168,6 +169,7 @@ test_that("QAPglm GMM works for binomial", {
 })
 
 test_that("QAPglm GMM works for poisson", {
+  skip_if_not_installed("gmm")
   d <- make_gmm_count()
   fit <- suppressWarnings(
     QAPglm(y ~ x1 + x2, data = d,
@@ -180,6 +182,7 @@ test_that("QAPglm GMM works for poisson", {
 })
 
 test_that("QAPglm GMM works for negbin", {
+  skip_if_not_installed("gmm")
   d <- make_gmm_negbin(n = 15, seed = 99)
   fit <- suppressWarnings(
     QAPglm(y ~ x1 + x2, data = d,
@@ -192,6 +195,7 @@ test_that("QAPglm GMM works for negbin", {
 })
 
 test_that("QAPglm GMM works for zip", {
+  skip_if_not_installed("gmm")
   d <- make_gmm_zip(n = 15, seed = 99)
   fit <- suppressWarnings(
     QAPglm(y ~ x1 + x2, data = d,
@@ -204,6 +208,7 @@ test_that("QAPglm GMM works for zip", {
 })
 
 test_that("QAPglm GMM with robust errors", {
+  skip_if_not_installed("gmm")
   d <- make_gmm_binary()
   fit <- suppressWarnings(
     QAPglm(y ~ x1 + x2, data = d,
@@ -217,6 +222,7 @@ test_that("QAPglm GMM with robust errors", {
 })
 
 test_that("QAPglm GMM rejects unsupported family", {
+  skip_if_not_installed("gmm")
   d <- list(y = matrix(rnorm(100), 10, 10),
             x1 = matrix(rnorm(100), 10, 10))
   diag(d$y) <- diag(d$x1) <- NA
@@ -229,6 +235,7 @@ test_that("QAPglm GMM rejects unsupported family", {
 })
 
 test_that("QAPglm GMM print shows estimator", {
+  skip_if_not_installed("gmm")
   d <- make_gmm_binary()
   fit <- suppressWarnings(
     QAPglm(y ~ x1, data = d,

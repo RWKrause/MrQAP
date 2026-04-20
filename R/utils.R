@@ -128,6 +128,8 @@ fit_qap_model <- function(mod, pred, family,
     if (!is.null(reference)) {
       pred[[dep_var]] <- relevel(pred[[dep_var]], ref = reference)
     }
+    if (!requireNamespace("nnet", quietly = TRUE))
+      stop("Package 'nnet' is required for multinomial models.")
     base_model       <- nnet::multinom(mod, data = pred, trace = FALSE)
     fit$coefficients <- coefficients(base_model)
     fit$t            <- coefficients(base_model) /
@@ -138,6 +140,8 @@ fit_qap_model <- function(mod, pred, family,
 
   # --- GMM ---
   if (estimator == "gmm") {
+    if (!requireNamespace("gmm", quietly = TRUE))
+      stop("Package 'gmm' is required for GMM estimation.")
     y_vec <- pred[[dep_var]]
     x_mat <- cbind(1, as.matrix(pred[, main_vars, drop = FALSE]))
 
@@ -249,6 +253,8 @@ fit_qap_model <- function(mod, pred, family,
   # --- standard estimation ---
   if (!has_random) {
     if (use_fixest) {
+      if (!requireNamespace("fixest", quietly = TRUE))
+        stop("Package 'fixest' is required when fixest_se_cluster or fixed effects with | ")
       fe_family <- if (family == "negbin") "negbin" else family
       base_model <- fixest::feglm(mod, data = pred,
                                   family = fe_family,
@@ -300,6 +306,8 @@ fit_qap_model <- function(mod, pred, family,
   } else {
     # --- random effects ---
     if (family == "gaussian") {
+      if (!requireNamespace("lme4", quietly = TRUE))
+        stop("Package 'lme4' is required for  random effects.")
       base_model <- lme4::lmer(mod, data = pred)
     } else if (family == "negbin") {
       # glmmTMB for mixed negative binomial
@@ -325,6 +333,8 @@ fit_qap_model <- function(mod, pred, family,
       fit$base_model <- base_model
       return(fit)
     } else {
+      if (!requireNamespace("lme4", quietly = TRUE))
+        stop("Package 'lme4' is required for  random effects.")
       base_model <- lme4::glmer(mod, data = pred, family = family,
                                 control = lme4::glmerControl(
                                   calc.derivs = FALSE,
@@ -552,6 +562,8 @@ residualise_predictor <- function(xi, pred, main_vars,
   if (!has_random) {
     xm <- lm(modx, data = pred)
   } else {
+    if (!requireNamespace("lme4", quietly = TRUE))
+      stop("Package 'lme4' is required for  random effects.")
     xm <- lme4::lmer(modx, data = pred)
   }
   residuals(xm)

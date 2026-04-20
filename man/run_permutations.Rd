@@ -4,7 +4,7 @@
 \alias{run_permutations}
 \title{Run permutations in parallel using future}
 \usage{
-run_permutations(reps, FUN, ..., use_progress = FALSE)
+run_permutations(reps, FUN, ..., p = NULL)
 }
 \arguments{
 \item{reps}{Number of permutations.}
@@ -13,7 +13,7 @@ run_permutations(reps, FUN, ..., use_progress = FALSE)
 
 \item{...}{Additional arguments passed to FUN.}
 
-\item{use_progress}{Logical; show progress bar via progressr.}
+\item{p}{A \code{progressr::progressor} object or NULL.}
 }
 \value{
 List of permutation results.

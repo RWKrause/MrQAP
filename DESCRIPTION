@@ -22,17 +22,17 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Imports:
+    reformulas,
+    future,
+    future.apply,
+    purrr
+Suggests:
     lme4,
     nnet,
     fixest,
     gmm,
     MASS,
     pscl,
-    reformulas,
-    future,
-    future.apply,
-    purrr
-Suggests:
     testthat (>= 3.0.0),
     torch,
     progressr,
