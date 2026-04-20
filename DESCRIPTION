@@ -1,7 +1,7 @@
 Package: MrQAP
 Type: Package
-Title: Estimating MRQAP on matrices and 3D arrays
-Version: 0.1.0
+Title: Multiple Regression Quadratic Assignment Procedure for Matrices and 3D Arrays
+Version: 0.2.0
 Authors@R: c(
     person(
       "Robert W.", "Krause",
@@ -9,14 +9,33 @@ Authors@R: c(
       role = c("aut", "cre")
     )
   )
-Description: More about what it does (maybe more than one line).
-    Continuation lines should be indented.
-License: What license is it under?
+Description: Estimates MRQAP models on network matrices and 3D cognitive social
+    structure (CSS) arrays.
+    Supports gaussian, binomial, poisson, negative binomial, zero-inflated
+    Poisson, and multinomial families with OLS, MLE, and GMM estimators.
+    Fixed effects via fixest::feglm and random effects via lme4 are supported.
+    Permutation testing uses Dekker's semi-partialling plus procedure (qapspp)
+    or simple Y permutation (qapy).
+    Parallelisation is handled by the future framework.
+    Optional GPU-accelerated batch OLS is available via the torch package.
+License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Imports:
-  lme4,
-  parallel,
-  dplyr,
-  nnet
+    reformulas,
+    future,
+    future.apply,
+    purrr
+Suggests:
+    lme4,
+    nnet,
+    fixest,
+    gmm,
+    MASS,
+    pscl,
+    testthat (>= 3.0.0),
+    torch,
+    progressr,
+    glmmTMB
+Config/testthat/edition: 3
 RoxygenNote: 7.3.3

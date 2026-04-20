@@ -1,450 +1,434 @@
 #' Parameter and p-value estimation with MRQAP
 #'
-#' @param y matrix or list; \code{y} needs to be a square \code{matrix}.
-#' Alternatively, \code{y} can be a \code{list} of matrices, if there are
-#' multiple networks that should be predicted at the same time.
+#' Estimates regression models on network data (matrices) with permutation-based
+#' inference.
 #'
-#' @param x matrix or list; needs to be a square \code{matrix} with the same
-#' dimensions as \code{y} and is the predictor for \code{y}. In most cases you
-#' have more than one predictor. Then \code{x} needs to be a \code{list} of
-#' matrices of the same dimensionality as \code{y}. If \code{y} is a
-#' \code{list}, then \code{x} should be a \code{list} of \code{list}s. Each
-#' predictor variable should be its own \code{list}, with each entrance being a
-#' \code{matrix} for each of the separate matrices in \code{y}. These
-#' \code{list}s are then combined into one \code{list} of \code{list}s (e.g.,
-#' \code{x[[1]][[2]]} is the predictor array of the first predictor for the
-#' second group). It is highly recommended that \code{x} is named. The names
-#' will be carried to the output. Do not name a variable one of the following
-#' names: "location", "yv", "nv", "sv", or "rv".
+#' @param formula A formula describing the model.
+#'   The left-hand side is the dependent variable name in \code{data};
+#'   the right-hand side lists predictor variable names.
+#'   Use \code{|} (without parentheses) for fixest fixed effects:
+#'   \code{y ~ x1 + x2 | fe1}.
+#'   Use \code{(1|var)} for lme4-style random effects:
+#'   \code{y ~ x1 + (1|sv)}.
 #'
-#' @param family character; While there is controversy around using anything but
-#'  a linear model in MRQAP (family = 'gaussian'), \code{QAPglm()} supports all
-#'   natural \code{R} model families (see \code{?family}).
+#' @param data Named list; each element is a square \code{matrix} (or a
+#'   \code{list} of matrices if there are multiple networks).  Names must
+#'   correspond to the variables in \code{formula}.
 #'
-#' @param mode character; indicates whether the \code{matrix} in \code{y} is
-#' 'directed' or 'undirected'. If it is 'undirected' only the upper triangle
-#' (\code{upper.tri()}) of each \code{matrix} will be used.
+#' @param family Character; model family (default \code{"gaussian"}).
+#'   Supported: \code{"gaussian"}, \code{"binomial"}, \code{"poisson"},
+#'   \code{"negbin"} (negative binomial), \code{"zip"} (zero-inflated
+#'   Poisson), and \code{"multinom"} (multinomial).
 #'
-#' @param diag logical; If \code{TRUE} diagonal values will also be included in
-#' the calculation. This is set to be \code{FALSE} by default and can
-#' potentially bias results when \code{TRUE}. (If \code{TRUE} is meaningful, it
-#' is recommended to run the model with and without \code{diag = TRUE} to see
-#' how relevant the diagonal is.)
+#' @param mode Character; \code{"directed"} (default) or \code{"undirected"}.
 #'
-#' @param nullhyp character; Currently only two baseline models are available
-#' \code{nullhyp = 'qapy'} and \code{nullhyp = 'qapspp'}. In general, 'qapspp'
-#' is the recommended option (see Dekker, Krackhardt, & Snijders, 2007).
-#' However, it costs more time and if all \code{x} are uncorrelated with each
-#' other both 'qapy' and 'qapspp' will give the same results.
+#' @param diag Logical; include diagonal values (default \code{FALSE}).
 #'
-#'@param estimator character; Choose estimator for the model family. Default is
-#'\code{estimator = 'standard'} which will either be least-squares or MLE. For
-#'\code{family = 'binomial'}, Generalized Methods of Moments is also available;
-#'\code{estimator = 'gmm'}. Currently gmm cannot be combined with random
-#'intercepts.
+#' @param nullhyp Character; \code{"qapspp"} (default, recommended) or
+#'   \code{"qapy"}.
 #'
-#' @param reps integer; indicates how many permutations should be performed.
-#' Default is 1000 but larger numbers are highly recommended.
+#' @param estimator Character; \code{"standard"} (default) or \code{"gmm"}
+#'   (for binomial, poisson, negbin, and zip families).
 #'
-#' @param seed integer; Given the random nature of the permutation, every call
-#' of \code{QAPglm()} will lead to different responses that will asymptotically
-#' converge with larger values for \code{reps}. To get consistent answers, one
-#' should specify a random number seed with the seed argument (e.g.,
-#' \code{seed = 1402}).
+#' @param reps Integer; number of permutations (default 1000).
+#' @param seed Integer; optional random seed.
+#' @param groups Vector (or list of vectors); permutation grouping.
+#' @param ncores Integer; number of cores for parallel processing via the
+#'   \code{future} framework.
+#' @param fixest_se_cluster Character; cluster variable for fixest.
 #'
-#' @param groups vector; It might be that a larger network is composed of
-#' qualitatively different groups. In that case, it might be desirable to only
-#' permute within groups. \code{groups} is a \code{vector} of \code{length =
-#' nrow(y)}, indicating the grouping of the nodes. If \code{y} is a \code{list}
-#' then \code{groups} needs to be a \code{list} of vectors.
+#' @param comparison Named list of length-2 character vectors specifying
+#'   category comparisons (e.g., \code{list(commission =
+#'   c("false_positive","true_negative"))}).
+#' @param reference Character; reference category (for multinomial or
+#'   comparison models).
 #'
-#' @param ncores integer; QAPglm() is parallelized (using the \code{parallel}
-#' package). If multiple cores are available, using them cuts the estimation in
-#' near linear relation by using multiple cores (e.g., \code{ncores = 10}). Be
-#' aware that depending on the \code{R} installation, parallelization can fail
-#' when too many cores are addressed at the same time. If you are using an HPC
-#' cluster, the recommendation is to submit many jobs, each only asking for 5-20
-#' cores, and running only a few hundred \code{reps}. The resulting outputs can
-#' then be combined with the auxiliary function \code{combine_qap_estimates()}.
+#' @param random_intercept_nets,random_intercept_sender,random_intercept_receiver
+#'   Logical; add random intercepts for networks, senders, receivers.
 #'
-#' @param same_x_4_all_y logical; If \code{y} is a \code{list} but all \code{x}
-#' should remain the same for all \code{y}, toggle this to TRUE. This might be
-#' relevant if similar but different networks between the same nodes are
-#' predicted. Should probably be combined with \code{random_intercept_groups =
-#' TRUE}.
+#' @param use_robust_errors Logical; use HC3 error correction.
+#' @param less_mem Logical; do not store the fitted model object.
+#' @param use_gpu Logical; use GPU-accelerated batch OLS (gaussian only,
+#'   requires \code{torch} package).
 #'
-#' @param random_intercept_... logical; Multiple arguments exist to specify
-#' random intercepts. instead of relying on \code{glm()} estimation will use the
-#' \code{lmer()} or \code{glmer()} from the \code{lme4} package to obtain
-#' parameter estimates and t-values for the permutation assessment.
-#' \code{random_intercept_nets} includes a random intercept for each network
-#' when \code{y} is a \code{list}. \code{random_intercept_sender} and
-#' \code{random_intercept_receiver} add intercepts for each node on the
-#' corresponding dimension (row = sender, column = receiver). Additionally,
-#' there is \code{random_intercept_other}. This argument expects an input
-#' corresponding to every element in \code{y} (either a similarly sized
-#' \code{matrix} or a \code{list} of matrices corresponding to each element in
-#' \code{y} when is a \code{list}). This \code{matrix} (or \code{list} thereof)
-#' will be used to create cell-specific random intercepts. This might be useful
-#' if some relationships are qualitatively different than others but all are
-#' expected to follow the same pattern (e.g., for some cells differences in
-#' (intercept and) residual variance are expected). You can submit \code{list}s
-#' of \code{list}s of matrices if you want multiple random intercept variables
-#' added.
+#' @return An object of class \code{QAPRegression} (gaussian) or
+#'   \code{QAPGLM} (other families).
 #'
-#' @param use_robust_errors logical; indicates if internal standard errors
-#' should be adjusted for heteroskedasticity using the HC3 adjustment. This is
-#' by default \code{FALSE} but recommended when linear probability models are
-#' being used or heterogeneity is otherwise suspected. Results will overall be
-#' more conservative and thus significant findings more reliable.
-#'
-#' @param error_file character; Not meant for the end-user. Passed to
-#' \code{makeCluster(ncores, outfile = error_file)}. See
-#' \code{?parallel::makeCluster}. Helpful if you want to debug the code.
-#'
-#' @returns an object of \code{class} \code{QAPRegression} when \code{family =
-#' 'gaussian'} or \code{QAPGLM} otherwise. It contains the basic input
-#' parameters and estimated parameters and p-values.
-#'
-#' import parallel
-#' import lme4
 #' @export
-#' @import parallel
-#' @import lme4
-#' @import gmm
 
-
-QAPglm <- function(y,
-                   x,
-                   family = 'gaussian',
-                   mode = 'directed',
-                   diag = FALSE,
-                   nullhyp = 'qapspp',
-                   estimator = 'standard',
-                   reps = 1000,
-                   seed = NULL,
-                   groups = NULL,
-                   ncores = NULL,
-                   same_x_4_all_y = FALSE,
-                   random_intercept_nets   = FALSE,
+QAPglm <- function(formula,
+                   data,
+                   family    = "gaussian",
+                   mode      = "directed",
+                   diag      = FALSE,
+                   nullhyp   = "qapspp",
+                   estimator = "standard",
+                   reps      = 1000,
+                   seed      = NULL,
+                   groups    = NULL,
+                   ncores    = NULL,
+                   fixest_se_cluster = NULL,
+                   comparison = NULL,
+                   reference  = NULL,
+                   random_intercept_nets     = FALSE,
                    random_intercept_sender   = FALSE,
                    random_intercept_receiver = FALSE,
-                   random_intercept_other = NULL,
                    use_robust_errors = FALSE,
-                   error_file = NULL) {
+                   less_mem   = FALSE,
+                   use_gpu    = FALSE) {
 
-  if (!is.list(y)) {
-    large <- FALSE
-  } else {
-    large <- TRUE
-  }
+  # --- seed ---
+  if (!is.null(seed)) set.seed(seed)
 
+  # --- parse formula ---
+  parsed <- parse_qap_formula(formula, fixest_se_cluster)
+  dep        <- parsed$dependent
+  main       <- parsed$main
+  # Filter out structural vars (sv, rv, nv, pv) that are auto-generated
+  data_vars  <- intersect(parsed$all_data_vars, names(data))
+
+  # --- validate ---
+  validate_qap_input(data, parsed, css = FALSE)
+  large <- is.list(data[[dep]])
+
+  # --- mode encoding ---
+  mode_internal <- if (mode == "directed") "digraph" else "graph"
 
   rin <- random_intercept_nets
   ris <- random_intercept_sender
   rir <- random_intercept_receiver
-  RIO <- random_intercept_other
-  if (!is.null(RIO)) {
-    rio <- TRUE
-  } else {
-    rio <- FALSE
+
+  # --- build internal formula ---
+  mod <- build_internal_formula(formula,
+                                rin = rin, ris = ris, rir = rir)
+  mod_str <- paste(deparse(mod, width.cutoff = 500), collapse = " ")
+  has_random <- grepl("\\(", mod_str) || parsed$has_random
+  use_fixest <- parsed$use_fixest
+  if (has_random && use_fixest) {
+    warning("Cannot combine fixest FE and lme4 random effects. ",
+            "Using lme4 random effects only.")
+    use_fixest <- FALSE
   }
 
+  mod <- as.formula(mod_str)
 
-  if (mode == 'directed') {
-    mode = 'digraph'
-  }
-  if (mode == 'undirected') {
-    mode = 'graph'
-  }
-
-
-  if (!is.null(seed)) {
-    set.seed(seed)
-  }
-
-  if (is.null(ncores)) {
-    ncores <- 1
-  }
-  clust <- parallel::makeCluster(ncores, outfile = error_file)
-
-
-  if (is.list(x)) {
-    nx <- length(x)
-  } else {
-    x <- list(x)
-    nx <- 1
-  }
-
-
-  if (!is.list(y)) {
-    pred <- make_qap_data(y = y,
-                          x = x,
-                          g = groups,
-                          RIO = RIO,
+  # --- build data frame ---
+  if (!large) {
+    pred <- make_qap_data(y    = data[[dep]],
+                          x    = data[data_vars],
+                          g    = groups,
                           diag = diag,
-                          mode = mode,
-                          net = 1,
+                          mode = mode_internal,
+                          net  = 1,
                           perm = FALSE,
-                          xi = NULL)
+                          xi   = NULL)
   } else {
-    pred_list <- vector(mode = 'list', length = length(y))
-    for (net in 1:length(y)) {
-      if (!same_x_4_all_y) {
-        x2 <- vector(mode = 'list', length = nx)
-        for (var in 1:nx) {
-          x2[[var]] <- x[[var]][[net]]
-        }
-        if (is.list(RIO)) {
-          RIO2 <- vector(mode = 'list', length = nx)
-
-          for (ri in 1:length) {
-            RIO2[[ri]] <- RIO[[ri]][[net]]
-          }
-        } else {
-          RIO2 <- RIO
-        }
-      } else {
-        x2 <- x
-      }
-      names(x2) <- names(x)
-      pred_list[[net]] <- make_qap_data(y = y[[net]],
-                                        x = x2,
-                                        g = groups[[net]],
-                                        RIO = RIO2,
+    pred_list <- vector("list", length(data[[dep]]))
+    for (net in seq_along(data[[dep]])) {
+      x2 <- lapply(data_vars, function(v) data[[v]][[net]])
+      names(x2) <- data_vars
+      g2 <- if (!is.null(groups)) groups[[net]] else NULL
+      pred_list[[net]] <- make_qap_data(y    = data[[dep]][[net]],
+                                        x    = x2,
+                                        g    = g2,
                                         diag = diag,
-                                        mode = mode,
-                                        net = net,
+                                        mode = mode_internal,
+                                        net  = net,
                                         perm = FALSE,
-                                        xi = NULL)
+                                        xi   = NULL)
     }
-
-    pred <- Reduce(f = 'rbind', pred_list)
+    pred <- do.call(rbind, pred_list)
   }
 
-  mod <- 'yv ~ 1'
+  # rename yv -> dependent name
+  names(pred)[names(pred) == "yv"] <- dep
 
-  for (var in names(x)) {
-    mod <- paste(mod, var, sep = ' + ')
+  # --- handle comparisons ---
+  if (!is.null(comparison) && is.null(reference)) {
+    reference <- NULL
   }
 
-  rand_int <- ''
-
-  if (rin) {
-    rand_int <- paste(rand_int,'+ (1|nv)')
-  }
-
-  if (ris) {
-    rand_int <- paste(rand_int,'+ (1|sv)')
-  }
-
-  if (rir) {
-    rand_int <- paste(rand_int,'+ (1|rv)')
-  }
-
-
-  if (rio) {
-    if (!is.list(RIO)) {
-      rand_int <- paste(rand_int,'+ (1|ov)')
-    } else {
-      for (i in 1:length(RIO)) {
-        rand_int <- paste0(rand_int,' + (1|ov',i,')')
-      }
-    }
-  }
-
-  mod <- paste(mod,rand_int)
-
-  mod <- as.formula(mod)
+  # --- baseline fit ---
   fit <- list()
 
-  rand <- any(c(rin, ris, rir,  rio))
+  # Build random-intercept string for residualisation later
+  rand_part <- ""
+  if (rin) rand_part <- paste(rand_part, "+ (1|nv)")
+  if (ris) rand_part <- paste(rand_part, "+ (1|sv)")
+  if (rir) rand_part <- paste(rand_part, "+ (1|rv)")
 
-  # baseline estimate
-  xv <- as.matrix(pred[,(ncol(pred) - length(x) + 1):ncol(pred)])
-
-  if (!rand) {
-    if (family == 'gaussian') {
-      base_model        <- lm(mod, data = pred)
-      fit$r.squared     <- summary(base_model)$r.squared
-      fit$adj.r.squared <- summary(base_model)$adj.r.squared
-    } else {
-      if (estimator == 'standard') {
-        base_model <- glm(mod, data = pred, family = family)
-        resid <- residuals(base_model)
-      } else {
-        if (family == 'binomial') {
-          base_model <- gmm(logit_moments,
-                            x = list(y = pred$yv,
-                                     x = cbind(1,as.matrix(pred[,names(x)]))),
-                            t0 = rnorm(nx + 1),
-                            wmatrix = "optimal",
-                            vcov = "MDS",
-                            optfct = "nlminb",
-                            control = list(eval.max = 10000))
-          resid <- logit_resid(base_model)
-
-        } else if (family == 'poisson') {
-          base_model <- gmm(poisson_moments,
-                            x = list(y = pred$yv,
-                                     x = cbind(1,as.matrix(pred[,names(x)]))),
-                            t0 = rnorm(nx + 1),
-                            wmatrix = "optimal",
-                            vcov = "MDS",
-                            optfct = "nlminb",
-                            control = list(eval.max = 10000))
-          resid <- poisson_resid(base_model)
-        }
-      }
-    }
-
-    fit$coefficients  <- base_model$coefficients
-
-    if (use_robust_errors) {
-      fit$t <- fit$coefficients / HC3(xv,resid)
-    } else {
-      fit$t <- summary(base_model)$coefficients[,3]
-    }
-    names(fit$t) <- c('Intercept',names(x))
-    names(fit$coefficients) <- c('Intercept',names(x))
+  if (is.null(comparison)) {
+    fit$base <- fit_qap_model(mod          = mod,
+                              pred         = pred,
+                              family       = family,
+                              estimator    = estimator,
+                              use_fixest   = use_fixest,
+                              fixest_se_cluster = fixest_se_cluster,
+                              use_robust_errors = use_robust_errors,
+                              main_vars    = main,
+                              has_random   = has_random,
+                              reference    = reference)
   } else {
-    if (family == 'gaussian') {
-      base_model <- lme4::lmer(mod, data = pred)
-    } else {
-      base_model <- lme4::glmer(mod, data = pred, family = family)
-      fit$log_lik <- summary(base_model)[[6]]
-    }
-    fit$coefficients  <- summary(base_model)$coefficients[,1]
-    resid <- residuals(base_model)
-    if (use_robust_errors) {
-      fit$t <- fit$coefficients / HC3(xv,resid)
-    } else {
-      fit$t <- summary(base_model)$coefficients[,3]
+    fit$base <- vector("list", length(comparison))
+    names(fit$base) <- names(comparison)
+    for (k in seq_along(comparison)) {
+      predK <- pred[pred[[dep]] %in% comparison[[k]], ]
+      predK[[dep]] <- ifelse(predK[[dep]] == comparison[[k]][1], 0, 1)
+      fit$base[[k]] <- fit_qap_model(mod          = mod,
+                                     pred         = predK,
+                                     family       = family,
+                                     estimator    = estimator,
+                                     use_fixest   = use_fixest,
+                                     fixest_se_cluster = fixest_se_cluster,
+                                     use_robust_errors = use_robust_errors,
+                                     main_vars    = main,
+                                     has_random   = has_random,
+                                     reference    = reference)
     }
   }
 
-  if ((nullhyp == "qapspp") && (nx == 1)) {
-    nullhyp <- "qapy"
-  }
+  # --- single-predictor override ---
+  if ((nullhyp == "qapspp") && (length(main) == 1)) nullhyp <- "qapy"
 
-  if (nullhyp == "qapy") {
-    res <- parallel::parLapply(cl = clust, 1:reps,
-                               fun = QAPglmPermEst,
-                               y. = y,
-                               xRm. = x,
-                               xi. = NULL,
-                               mode. = mode,
-                               diag. = diag,
-                               mod. = mod,
-                               groups. = groups,
-                               fit. = fit,
-                               family. = family,
-                               estimator. = estimator,
-                               RIO. = RIO,
-                               use_robust_errors. = use_robust_errors,
-                               same_x_4_all_y. = same_x_4_all_y,
-                               rand. = rand)
+  # --- GPU fast path (gaussian, no random, no fixest, no comparison) ---
+  if (use_gpu && family == "gaussian" && !has_random && !use_fixest &&
+      is.null(comparison) && !large) {
 
-    resL <- unlist(res,recursive = FALSE)
+    if (nullhyp == "qapy") {
+      gpu_res <- gpu_batch_ols(data         = data,
+                               parsed       = parsed,
+                               mode         = mode_internal,
+                               diag         = diag,
+                               groups       = groups,
+                               reps         = reps,
+                               baseline_fit = fit$base,
+                               perm_var     = NULL)
+      fit$lower  <- gpu_res$lower
+      fit$larger <- gpu_res$larger
+      fit$abs    <- gpu_res$abs
 
-    fit$lower  <- Reduce(f = '+', resL[names(resL) == 'lower'],0)/reps
-    fit$larger <- Reduce(f = '+', resL[names(resL) == 'larger'],0)/reps
-    fit$abs    <- Reduce(f = '+', resL[names(resL) == 'abs'],0)/reps
+    } else if (nullhyp == "qapspp") {
+      n_coefs <- length(fit$base$coefficients)
+      fit$lower  <- matrix(NA, nrow = 2, ncol = n_coefs)
+      fit$larger <- fit$abs <- fit$lower
+      colnames(fit$lower) <- colnames(fit$larger) <-
+        colnames(fit$abs)  <- names(fit$base$coefficients)
 
-  } else if (nullhyp == "qapspp") {
-    fit$lower  <- matrix(NA, nrow = 2, ncol = (nx + 1))
-    fit$larger <- matrix(NA, nrow = 2, ncol = (nx + 1))
-    fit$abs    <- matrix(NA, nrow = 2, ncol = (nx + 1))
-    colnames(fit$lower) <- names(fit$coefficients)
-    colnames(fit$larger) <- names(fit$coefficients)
-    colnames(fit$abs) <- names(fit$coefficients)
+      for (xi in main) {
+        xR <- residualise_predictor(xi, pred, main,
+                                    has_random   = has_random,
+                                    rand_formula = rand_part)
+        data_resid <- data
+        data_resid[[xi]] <- residuals_to_matrix(xR, data[[xi]], pred, large)
 
-    for (xi in names(x)) {
-      modx <- paste(xi,'~ 1')
-      for (varx in names(x)[names(x) != xi]) {
-        modx <- paste(modx, varx, sep = ' + ')
+        gpu_res <- gpu_batch_ols(data         = data_resid,
+                                 parsed       = parsed,
+                                 mode         = mode_internal,
+                                 diag         = diag,
+                                 groups       = groups,
+                                 reps         = reps,
+                                 baseline_fit = fit$base,
+                                 perm_var     = xi)
+        fit$lower[, xi]  <- gpu_res$lower[, xi]
+        fit$larger[, xi] <- gpu_res$larger[, xi]
+        fit$abs[, xi]    <- gpu_res$abs[, xi]
       }
-      if (!rand) {
-        modx <- as.formula(modx)
-        xm <- lm(modx, data = pred)
-      } else {
-        modx <- paste(modx, rand_int)
-        modx <- as.formula(modx)
-        xm <- lmer(modx, data = pred)
-      }
-      xR <- residuals(xm)
-      xRm <- x
+    }
 
-      if (!large) {
-        xRm[[xi]][pred$location] <- xR
+  } else {
+    # --- set up future plan ---
+    old_plan <- setup_future_plan(ncores)
+    on.exit({
+      future::plan(old_plan)
+      options(future.globals.maxSize = attr(old_plan, "old_maxSize"))
+    }, add = TRUE)
+
+    # --- progress bar ---
+    total_reps <- if (nullhyp == "qapy") reps else reps * length(main)
+    has_progressr <- requireNamespace("progressr", quietly = TRUE)
+
+    .run_cpu_perms <- function(p) {
+    if (nullhyp == "qapy") {
+      res <- run_permutations(
+        reps, QAPglmPermEst,
+        data.     = data,
+        perm_var. = NULL,
+        mode.     = mode_internal,
+        diag.     = diag,
+        mod.      = mod,
+        groups.   = groups,
+        fit.      = if (is.null(comparison)) fit$base else fit$base,
+        family.   = family,
+        estimator. = estimator,
+        use_fixest. = use_fixest,
+        fixest_se_cluster. = fixest_se_cluster,
+        use_robust_errors. = use_robust_errors,
+        has_random. = has_random,
+        main_vars. = main,
+        data_vars. = data_vars,
+        parsed.   = parsed,
+        comp.     = comparison,
+        reference. = reference,
+        p         = p
+      )
+
+      if (is.null(comparison)) {
+        agg <- aggregate_perm_results(res, reps)
+        fit$lower  <<- agg$lower
+        fit$larger <<- agg$larger
+        fit$abs    <<- agg$abs
       } else {
-        for (net in 1:length(y)) {
-          xRm[[xi]][[net]][pred$location[
-            as.character(pred$nv) == net]] <- xR[as.character(pred$nv) == net]
+        res_valid <- Filter(Negate(is.null), res)
+        n_valid   <- length(res_valid)
+        fit$lower <<- fit$larger <<- fit$abs <<-
+          vector("list", length(comparison))
+        names(fit$lower)  <<- names(comparison)
+        names(fit$larger) <<- names(comparison)
+        names(fit$abs)    <<- names(comparison)
+        resL <- unlist(unlist(res_valid, recursive = FALSE), recursive = FALSE)
+        for (k in seq_along(comparison)) {
+          cn <- names(comparison)[k]
+          fit$lower[[k]]  <<- Reduce("+", resL[names(resL) == paste0(cn, ".lower")], 0) / n_valid
+          fit$larger[[k]] <<- Reduce("+", resL[names(resL) == paste0(cn, ".larger")], 0) / n_valid
+          fit$abs[[k]]    <<- Reduce("+", resL[names(resL) == paste0(cn, ".abs")], 0) / n_valid
         }
       }
 
-      res <- parallel::parLapply(cl = clust, 1:reps,
-                                 fun = QAPglmPermEst,
-                                 y. = y,
-                                 xi. = xi,
-                                 mode. = mode,
-                                 diag. = diag,
-                                 mod. = mod,
-                                 family. = family,
-                                 estimator. = estimator,
-                                 groups. = groups,
-                                 fit. = fit,
-                                 xRm. = xRm,
-                                 RIO. = RIO,
-                                 use_robust_errors. = use_robust_errors,
-                                 same_x_4_all_y. = same_x_4_all_y,
-                                 rand. = rand)
+    } else if (nullhyp == "qapspp") {
 
-      resL <- unlist(res, recursive = FALSE)
+      # Initialise p-value matrices
+      if (is.null(comparison)) {
+        n_coefs <- length(fit$base$coefficients)
+        fit$lower  <<- matrix(NA, nrow = 2, ncol = n_coefs)
+        fit$larger <<- fit$abs <<- fit$lower
+        colnames(fit$lower) <<- colnames(fit$larger) <<-
+          colnames(fit$abs)  <<- names(fit$base$coefficients)
+      } else {
+        fit$lower <<- fit$larger <<- fit$abs <<-
+          vector("list", length(comparison))
+        names(fit$lower) <<- names(fit$larger) <<-
+          names(fit$abs)  <<- names(comparison)
+        for (k in seq_along(comparison)) {
+          n_coefs <- length(fit$base[[k]]$coefficients)
+          fit$lower[[k]] <<- matrix(NA, nrow = 2, ncol = n_coefs)
+          fit$larger[[k]] <<- fit$abs[[k]] <<- fit$lower[[k]]
+          colnames(fit$lower[[k]]) <<- colnames(fit$larger[[k]]) <<-
+            colnames(fit$abs[[k]])  <<- names(fit$base[[k]]$coefficients)
+        }
+      }
 
-      fit$lower[,xi]  <- Reduce(f = '+',
-                                resL[names(resL) == 'lower'],
-                                0)/reps
-      fit$larger[,xi] <- Reduce(f = '+',
-                                resL[names(resL) == 'larger'],
-                                0)/reps
-      fit$abs[,xi]    <- Reduce(f = '+',
-                                resL[names(resL) == 'abs'],
-                                0)/reps
+      for (xi in main) {
+        # Residualise xi on other predictors
+        xR <- residualise_predictor(xi, pred, main,
+                                    has_random   = has_random,
+                                    rand_formula = rand_part)
+
+        # Put residuals back into matrix form
+        data_resid <- data
+        data_resid[[xi]] <- residuals_to_matrix(xR, data[[xi]], pred, large)
+
+        res <- run_permutations(
+          reps, QAPglmPermEst,
+          data.     = data_resid,
+          perm_var. = xi,
+          mode.     = mode_internal,
+          diag.     = diag,
+          mod.      = mod,
+          groups.   = groups,
+          fit.      = if (is.null(comparison)) fit$base else fit$base,
+          family.   = family,
+          estimator. = estimator,
+          use_fixest. = use_fixest,
+          fixest_se_cluster. = fixest_se_cluster,
+          use_robust_errors. = use_robust_errors,
+          has_random. = has_random,
+          main_vars. = main,
+          data_vars. = data_vars,
+          parsed.   = parsed,
+          comp.     = comparison,
+          reference. = reference,
+          p         = p
+        )
+
+        if (is.null(comparison)) {
+          agg <- aggregate_perm_results(res, reps)
+          fit$lower[, xi]  <<- agg$lower
+          fit$larger[, xi] <<- agg$larger
+          fit$abs[, xi]    <<- agg$abs
+        } else {
+          res_valid <- Filter(Negate(is.null), res)
+          n_valid   <- length(res_valid)
+          resL <- unlist(unlist(res_valid, recursive = FALSE), recursive = FALSE)
+          for (k in seq_along(comparison)) {
+            cn <- names(comparison)[k]
+            fit$lower[[k]][, xi]  <<- Reduce("+", resL[names(resL) == paste0(cn, ".lower")], 0) / n_valid
+            fit$larger[[k]][, xi] <<- Reduce("+", resL[names(resL) == paste0(cn, ".larger")], 0) / n_valid
+            fit$abs[[k]][, xi]    <<- Reduce("+", resL[names(resL) == paste0(cn, ".abs")], 0) / n_valid
+          }
+        }
+      }
+    }
+    }  # end .run_cpu_perms
+
+    if (has_progressr) {
+      progressr::with_progress({
+        p <- progressr::progressor(steps = total_reps)
+        .run_cpu_perms(p)
+      })
+    } else {
+      .run_cpu_perms(NULL)
     }
   }
 
-  stopCluster(clust)
-  if (!is.null(names(x))) {
-    names(fit$coefficients) <- c('(Intercept)', names(x))
-    names(fit$t)            <- c('(Intercept)', names(x))
-    colnames(fit$lower)     <- c('(Intercept)', names(x))
-    colnames(fit$larger)    <- c('(Intercept)', names(x))
-    colnames(fit$abs)       <- c('(Intercept)', names(x))
+  # --- package results ---
+  if (is.null(comparison)) {
+    fit$coefficients <- fit$base$coefficients
+    fit$t            <- fit$base$t
+    if (!is.null(fit$base$r.squared)) {
+      fit$r.squared     <- fit$base$r.squared
+      fit$adj.r.squared <- fit$base$adj.r.squared
+    }
+    if (!is.null(fit$base$random.intercepts))
+      fit$random.intercepts <- fit$base$random.intercepts
+    if (!is.null(fit$base$theta))
+      fit$theta <- fit$base$theta
+    if (!is.null(fit$base$zi_coefficients))
+      fit$zi_coefficients <- fit$base$zi_coefficients
+    if (!less_mem) fit$simple_fit <- fit$base$base_model
+  } else {
+    if (!less_mem) {
+      fit$simple_fits <- lapply(fit$base, `[[`, "base_model")
+    }
   }
 
-  fit$nullhyp <- nullhyp
-  fit$diag <- diag
-  fit$family <- family
+  # --- confusion matrix for binomial ---
+  if (family == "binomial" && is.null(comparison)) {
+    bm <- fit$base$base_model
+    if (!inherits(bm, "gmm")) {
+      predicted <- fitted(bm)
+      actual    <- pred[[dep]]
+      fit$confusion_matrix <- probabilistic_confusion_matrix(
+        actual = actual, predicted_prob = predicted,
+        n_draws = 1000, seed = seed
+      )
+    }
+  }
 
-  if (mode == 'digraph') {
-    mode = 'directed'
-  }
-  if (mode == 'graph') {
-    mode = 'undirected'
-  }
-  fit$mode <- mode
-  fit$reps <- reps
-  fit$groups <- unique(unlist(groups))
-  fit$simple_fit <- base_model
+  fit$nullhyp   <- nullhyp
+  fit$diag      <- diag
+  fit$family    <- family
+  fit$mode      <- mode
+  fit$reps      <- reps
+  fit$groups    <- unique(unlist(groups))
   fit$robust_se <- use_robust_errors
   fit$estimator <- estimator
+  fit$comp      <- comparison
+  fit$reference <- reference
 
-  if (family == 'gaussian') {
-    class(fit) <- 'QAPRegression'
+  if (family == "gaussian" && is.null(comparison)) {
+    class(fit) <- "QAPRegression"
   } else {
-    class(fit) <- 'QAPGLM'
+    class(fit) <- "QAPGLM"
   }
   return(fit)
 }

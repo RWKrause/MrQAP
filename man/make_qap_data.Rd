@@ -4,30 +4,40 @@
 \alias{make_qap_data}
 \title{Internal auxiliary function to make QAPglm() data}
 \usage{
-make_qap_data(y, x, g, RIO, diag, mode, net, perm = FALSE, xi = NULL)
+make_qap_data(
+  y,
+  x,
+  g = NULL,
+  diag = FALSE,
+  mode = "digraph",
+  net = 1,
+  perm = FALSE,
+  xi = NULL
+)
 }
 \arguments{
-\item{y}{matrix; same as in \code{QAPglm()}}
+\item{y}{Matrix; the dependent variable.}
 
-\item{x}{matrix or list; same as in \code{QAPglm()}}
+\item{x}{Named list of matrices; the predictors.}
 
-\item{g}{vector; created in same as in \code{QAPglm()} from groups}
+\item{g}{Vector; group memberships for constrained permutation.}
 
-\item{RIO}{matrix or list; same as \code{random_intercept_other} in \code{QAPglm()}}
+\item{diag}{Logical; include diagonal?}
 
-\item{diag}{logical; same as in \code{QAPglm()}}
+\item{mode}{Character; "digraph" or "graph".}
 
-\item{mode}{character; same as in \code{QAPglm()}}
+\item{net}{Integer; network index (for multiple networks).}
 
-\item{net}{integer; internal parameter to create random intercept for each network in \code{y}}
+\item{perm}{Logical; should a permutation be performed?}
 
-\item{perm}{logical; should a permutation be performed}
-
-\item{xi}{integer; either \code{NULL} or the number of the residualized variable in \code{x}}
+\item{xi}{Character; name of variable to permute (qapspp) or NULL (qapy).}
 }
 \value{
-data in the format to be used in \code{QAPglm()} or \code{QAPglmPermEst}
+A data frame with columns: location, yv, nv, sv, rv, and
+  one column per predictor.
 }
 \description{
-Internal auxiliary function to make QAPglm() data
+Converts network matrices into a long-format data frame suitable for
+regression.  Also handles permutation when \code{perm = TRUE}.
 }
+\keyword{internal}

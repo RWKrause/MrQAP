@@ -2,18 +2,19 @@
 % Please edit documentation in R/glm_tab.R
 \name{glm_tab}
 \alias{glm_tab}
-\title{Internal auxiliary function to help plot QAPcss() output}
+\title{Internal auxiliary function to print QAPcss() coefficient tables}
 \usage{
 glm_tab(x, comp)
 }
 \arguments{
-\item{x}{list; an \code{R} object of class \code{QAPCSS} returned by \code{QAPcss(...)}.}
+\item{x}{An object of class \code{QAPCSS}.}
 
-\item{comp}{list; see \code{QAPcss(...)}}
+\item{comp}{Character or NULL; name of comparison to print.}
 }
 \value{
 Prints the results table.
 }
 \description{
-Internal auxiliary function to help plot QAPcss() output
+Internal auxiliary function to print QAPcss() coefficient tables
 }
+\keyword{internal}

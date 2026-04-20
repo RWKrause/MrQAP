@@ -7,7 +7,7 @@
 logit_moments(theta, data)
 }
 \arguments{
-\item{theta}{numeric; Vetor of parameter values, see \code{?gmm::gmm}.}
+\item{theta}{numeric; Vector of parameter values, see \code{?gmm::gmm}.}
 
 \item{data}{matrix; Data matrix for all X, see \code{?gmm::gmm}.}
 }
