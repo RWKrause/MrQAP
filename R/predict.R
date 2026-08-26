@@ -50,12 +50,22 @@ predict.QAP <- function(object, newdata = NULL,
   if (is.null(m))
     stop("No fitted model was retained; refit with less_mem = FALSE.")
 
+  # A linear model's link is the identity, and predict.lm() has no "link"
+  # type at all -- asking for one is an error rather than a no-op. Map it
+  # to the response scale, which for an lm is the same thing.
+  is_lm <- inherits(m, "lm") && !inherits(m, "glm")
+  ptype <- if (type == "matrix" || (type == "link" && is_lm)) {
+    "response"
+  } else {
+    type
+  }
+
   pv <- if (is.null(newdata)) {
-    if (type == "link") stats::predict(m, type = "link", ...)
-    else                stats::fitted(m, ...)
+    if (ptype == "response") stats::fitted(m, ...)
+    else                     stats::predict(m, type = ptype, ...)
   } else {
     stats::predict(m, newdata = qap_predict_frame(object, newdata),
-                   type = if (type == "matrix") "response" else type, ...)
+                   type = ptype, ...)
   }
   pv <- as.vector(pv)
 

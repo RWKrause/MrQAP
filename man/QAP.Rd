@@ -131,8 +131,15 @@ network, at the cost of \code{fitted()}, \code{residuals()},
 \code{confint()}, which need one or the other.  \code{coef()},
 \code{nobs()} and \code{summary()} still work.}
 
-\item{use_gpu}{Logical; use GPU-accelerated batch OLS (gaussian only,
-requires the \code{torch} package).}
+\item{use_gpu}{Logical; use GPU-accelerated batch OLS through
+\pkg{torch}.  Limited to gaussian models with complete data, no random
+or fixed effects, no comparisons, no weights or offset and no robust
+standard errors; anything else warns and falls back to the CPU.
+Worth it from a few thousand dyads upwards -- below that the transfer
+overhead exceeds the work, and on a CPU-only \pkg{torch} install it is
+slower than the plain fast path throughout.  Each run re-solves its
+first batch on the CPU and stops if the two disagree, so a driver or
+\pkg{torch} change cannot move p-values silently.}
 
 \item{css}{Logical or \code{NULL}; is this CSS (3D array) data?
 \code{NULL} (default) detects it from the dimensions of the dependent
