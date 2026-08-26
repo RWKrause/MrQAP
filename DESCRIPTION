@@ -1,7 +1,6 @@
 Package: MrQAP
-Type: Package
-Title: Multiple Regression Quadratic Assignment Procedure for Matrices and 3D Arrays
-Version: 0.2.0
+Title: Multiple Regression Quadratic Assignment Procedure for Networks
+Version: 0.3.0
 Authors@R: c(
     person(
       "Robert W.", "Krause",
@@ -9,33 +8,46 @@ Authors@R: c(
       role = c("aut", "cre")
     )
   )
-Description: Estimates MRQAP models on network matrices and 3D cognitive social
-    structure (CSS) arrays.
-    Supports gaussian, binomial, poisson, negative binomial, zero-inflated
-    Poisson, and multinomial families with OLS, MLE, and GMM estimators.
-    Fixed effects via fixest::feglm and random effects via lme4 are supported.
-    Permutation testing uses Dekker's semi-partialling plus procedure (qapspp)
-    or simple Y permutation (qapy).
-    Parallelisation is handled by the future framework.
-    Optional GPU-accelerated batch OLS is available via the torch package.
-License: MIT + file LICENSE
+Description: Estimates multiple regression quadratic assignment procedure
+    (MRQAP) models on network matrices, on cognitive social structure (CSS)
+    arrays, and on multi-mode data in which each dimension is its own node
+    set. Supports gaussian, binomial, Poisson, negative binomial,
+    zero-inflated Poisson and multinomial families with ordinary least
+    squares, maximum likelihood and generalised method-of-moments
+    estimators, optionally with fixed or random effects and
+    heteroskedasticity-consistent standard errors. Permutation inference
+    uses either Dekker's semi-partialling plus procedure, described in
+    Dekker, Krackhardt and Snijders (2007) <doi:10.1007/s11336-007-9016-1>,
+    or permutation of the outcome, following Krackhardt (1988)
+    <doi:10.1016/0378-8733(88)90004-4>. Parallelisation is handled by the
+    'future' framework, with optional GPU-accelerated batch estimation via
+    'torch'.
+License: GPL (>= 3)
+URL: https://github.com/RWKrause/MrQAP
+BugReports: https://github.com/RWKrause/MrQAP/issues
 Encoding: UTF-8
-LazyData: true
+Depends:
+    R (>= 4.1)
 Imports:
-    reformulas,
     future,
     future.apply,
-    purrr
+    purrr,
+    reformulas,
+    stats
 Suggests:
-    lme4,
-    nnet,
     fixest,
+    glmmTMB,
     gmm,
+    knitr,
+    lme4,
     MASS,
-    pscl,
-    testthat (>= 3.0.0),
-    torch,
+    nnet,
     progressr,
-    glmmTMB
+    pscl,
+    rmarkdown,
+    sandwich,
+    testthat (>= 3.0.0),
+    torch
+VignetteBuilder: knitr
 Config/testthat/edition: 3
-RoxygenNote: 7.3.3
+Config/roxygen2/version: 8.1.0
