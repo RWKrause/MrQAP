@@ -2,3 +2,13 @@
 ^renv\.lock$
 ^.*\.Rproj$
 ^\.Rproj\.user$
+^\.Rhistory$
+^\.RData$
+^test\.RData$
+^data-raw$
+^\.github$
+^README\.Rmd$
+^\.git$
+^\.gitignore$
+^doc$
+^Meta$

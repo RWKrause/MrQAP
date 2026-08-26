@@ -3,3 +3,10 @@
 *.RData
 *.Ruserdata
 .Rproj.user
+/doc/
+/Meta/
+doc/
+Meta/
+
+# Large local test artefact, not part of the package
+test.RData
