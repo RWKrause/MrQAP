@@ -119,15 +119,16 @@ coef.QAP <- function(object, ...) {
 #' @param object A QAP fit.
 #' @param ... Ignored.
 #'
-#' @return Integer, or \code{NA} if the fitted model was not retained
-#'   (\code{less_mem = TRUE}).
+#' @return Integer.  Recorded at fit time, so it is available even when the
+#'   model object was dropped by \code{less_mem = TRUE}.
 #' @export
 nobs.QAP <- function(object, ...) {
+  # Recorded when the data were vectorised. Preferred over the model
+  # object, which less_mem drops -- nobs() used to return NA in that case.
+  if (!is.null(object$n_obs)) return(as.integer(object$n_obs))
+
   m <- object$simple_fit
-  if (is.null(m)) {
-    nd <- object$null_dist
-    return(NA_integer_)
-  }
+  if (is.null(m)) return(NA_integer_)
   tryCatch(stats::nobs(m), error = function(e) NA_integer_)
 }
 

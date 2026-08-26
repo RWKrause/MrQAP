@@ -59,6 +59,21 @@
 #'   Logical; add random intercepts for networks, senders, receivers and
 #'   (CSS only) perceivers.
 #'
+#' @param weights,offset Optional prior weights and offset, each a matrix
+#'   or array shaped exactly like the dependent variable (or a list of them,
+#'   for several networks).  \code{weights} scales each dyad's contribution
+#'   to the fit; \code{offset} enters the linear predictor with its
+#'   coefficient fixed at one, which is how exposure is handled in count
+#'   models.  Both are supported for every family and for both estimators,
+#'   including GMM, where they enter the moment conditions.  Multinomial
+#'   fits accept \code{weights} but not \code{offset}.
+#'
+#'   \strong{Permutation semantics:} a weight and an offset are properties
+#'   of the cell, not of the actors, so they stay in place while the
+#'   outcome (or the tested predictor) is permuted.  They are part of the
+#'   fixed design against which the null distribution is generated, not
+#'   quantities that travel with the relabelling.
+#'
 #' @param use_robust_errors Logical; use heteroskedasticity-consistent
 #'   standard errors.  HC3 for linear models, the GLM sandwich otherwise.
 #'   Not available for mixed models.
@@ -137,6 +152,8 @@ QAP <- function(formula,
                 random_intercept_sender     = FALSE,
                 random_intercept_receiver   = FALSE,
                 random_intercept_perceiver  = FALSE,
+                weights    = NULL,
+                offset     = NULL,
                 use_robust_errors = FALSE,
                 less_mem   = FALSE,
                 use_gpu    = FALSE,
@@ -256,9 +273,25 @@ QAP <- function(formula,
   groups  <- gp$groups
   grouped <- gp$grouped
 
+  # --- weights and offset ---
+  # Carried through the vectoriser as reserved columns so they are masked,
+  # subset and stacked exactly like the predictors -- including having
+  # their NAs drop the same cells -- but never enter the model matrix.
+  wo_vars <- character(0)
+  for (nm in c("weights", "offset")) {
+    v <- if (nm == "weights") weights else offset
+    if (is.null(v)) next
+    col <- paste0(".qap_", nm)
+    validate_wo(v, data[[dep]], nm, large = large, css = css)
+    data[[col]] <- v
+    wo_vars <- c(wo_vars, col)
+  }
+  has_wo <- length(wo_vars) > 0L
+
   # --- vectorise the data ---
-  built <- qap_build_pred(data, dep, data_vars, groups, diag, mode,
-                          css = css, large = large, multi_mode = multi_mode)
+  built <- qap_build_pred(data, dep, c(data_vars, wo_vars), groups, diag,
+                          mode, css = css, large = large,
+                          multi_mode = multi_mode)
   pred       <- built$pred
   valid      <- built$valid
   valid_list <- built$valid_list
@@ -268,14 +301,15 @@ QAP <- function(formula,
   # Resolved before the baseline fit so an unusable use_gpu is reported
   # immediately rather than after the expensive part.
   fast_ok <- qap_ols_eligible(family, estimator, has_random, use_fixest,
-                              comparison, data, c(dep, main))
+                              comparison, data, c(dep, main),
+                              has_wo = has_wo)
   gpu_ok  <- use_gpu && fast_ok && !use_robust_errors
 
   if (use_gpu && !gpu_ok)
     warning("use_gpu = TRUE was requested but this model cannot use the GPU ",
             "path (it is limited to gaussian models with complete data, no ",
-            "random or fixed effects, no comparisons and no robust standard ",
-            "errors). Falling back to the CPU.")
+            "random or fixed effects, no comparisons, no weights or offset ",
+            "and no robust standard errors). Falling back to the CPU.")
 
   # --- baseline fit ---
   fit <- list()
@@ -303,8 +337,8 @@ QAP <- function(formula,
                          use_robust_errors = use_robust_errors)
   } else {
     agg <- qap_cpu_perms(data, parsed, mode, diag, groups, reps, fit$base,
-                         nullhyp, main, data_vars, pred, valid, valid_list,
-                         large, rand_part, mod, family, estimator,
+                         nullhyp, main, c(data_vars, wo_vars), pred, valid,
+                         valid_list, large, rand_part, mod, family, estimator,
                          use_fixest, fixest_se_cluster, use_robust_errors,
                          has_random, comparison, reference, ncores, css,
                          multi_mode)
@@ -345,6 +379,12 @@ QAP <- function(formula,
     }
   }
 
+  # Shape of the input, kept so predict(type = "matrix") can rebuild the
+  # valid-cell mask, and so nobs() works even when the model object was
+  # dropped by less_mem.
+  fit$dim <- if (large) lapply(data[[dep]], dim) else dim(data[[dep]])
+  fit$n_obs <- nrow(pred)
+
   fit$nullhyp   <- nullhyp
   fit$diag      <- diag
   fit$family    <- family
@@ -359,6 +399,8 @@ QAP <- function(formula,
   # whether or not use_robust_errors was set.
   fit$robust_se <- use_robust_errors || estimator == "gmm"
   fit$estimator <- estimator
+  fit$weighted  <- !is.null(weights)
+  fit$offset    <- !is.null(offset)
   fit$comp      <- comparison
   fit$reference <- reference
 
@@ -439,6 +481,59 @@ detect_multi_mode <- function(y, multi_mode = NULL, dep = "y") {
          paste(d, collapse = " x "),
          ". One-mode data must be square (or cubic).")
   multi_mode
+}
+
+
+#' Validate a weights or offset argument
+#'
+#' Same shape rules as a predictor, plus the constraints particular to
+#' each: weights must be non-negative and finite, an offset finite.
+#'
+#' @param v The supplied weights or offset.
+#' @param y The dependent variable.
+#' @param what Character; "weights" or "offset", for messages.
+#' @param large Logical; is y a list of networks?
+#' @param css Logical; CSS data?
+#'
+#' @return Invisibly TRUE, or throws.
+#' @keywords internal
+
+validate_wo <- function(v, y, what, large = FALSE, css = FALSE) {
+  shape <- if (css) "a 3-dimensional array" else "a matrix"
+
+  check_one <- function(vi, yi, where) {
+    if (!is.numeric(vi))
+      stop(what, where, " must be numeric.")
+    if (!identical(dim(vi), dim(yi)))
+      stop(what, where, " has dimensions ",
+           paste(dim(vi), collapse = " x "),
+           " but the dependent variable has ",
+           paste(dim(yi), collapse = " x "), "; it must be ", shape,
+           " of exactly the same shape.")
+    finite <- is.finite(vi) | is.na(vi)
+    if (!all(finite))
+      stop(what, where, " contains non-finite values.")
+    if (what == "weights" && any(vi < 0, na.rm = TRUE))
+      stop("weights", where, " must not be negative.")
+    invisible(TRUE)
+  }
+
+  if (large) {
+    if (!is.list(v))
+      stop(what, " must be a list of ", length(y),
+           " objects, matching the dependent variable.")
+    if (length(v) != length(y))
+      stop(what, " has ", length(v), " element(s) but there are ",
+           length(y), " networks.")
+    for (i in seq_along(v))
+      check_one(v[[i]], y[[i]], paste0("[[", i, "]]"))
+  } else {
+    if (is.list(v))
+      stop(what, " is a list but the dependent variable is a single ",
+           "network.")
+    check_one(v, y, "")
+  }
+  invisible(TRUE)
 }
 
 

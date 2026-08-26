@@ -1,3 +1,26 @@
+# ============================================================
+# Moment conditions for the GMM estimator.
+#
+# Each takes gmm()'s data list, which carries y and x and -- when the model
+# was fitted with them -- the prior weights w and the offset off. Weights
+# scale each observation's contribution to the moment; the offset enters
+# the linear predictor with a coefficient fixed at one. Both default to
+# neutral, so a fit without them is unchanged.
+# ============================================================
+
+#' Prior weights from a gmm() data list, defaulting to 1
+#' @param data The list passed to \code{gmm::gmm()}.
+#' @return Numeric vector, or the scalar 1.
+#' @keywords internal
+gmm_w <- function(data) if (is.null(data$w)) 1 else as.numeric(data$w)
+
+#' Offset from a gmm() data list, defaulting to 0
+#' @param data The list passed to \code{gmm::gmm()}.
+#' @return Numeric vector, or the scalar 0.
+#' @keywords internal
+gmm_off <- function(data) if (is.null(data$off)) 0 else as.numeric(data$off)
+
+
 #' Auxiliary functions for GMM estimation - Poisson
 #'
 #' @param theta numeric; Vector of parameter values, see \code{?gmm::gmm}.
@@ -9,9 +32,9 @@
 poisson_moments <- function(theta, data) {
   Y <- as.numeric(data$y)
   X <- data.matrix(data$x)
-  lambda_hat <- exp(X %*% theta)
+  lambda_hat <- exp(X %*% theta + gmm_off(data))
   residuals <- as.vector(Y - lambda_hat)
-  g <- residuals * X
+  g <- (gmm_w(data) * residuals) * X
   return(g)
 }
 
@@ -25,9 +48,9 @@ poisson_moments <- function(theta, data) {
 logit_moments <- function(theta, data) {
   Y <- data$y
   X <- data$x
-  prob <- 1 / (1 + exp(-1 * (X %*% theta)))
+  prob <- 1 / (1 + exp(-1 * (X %*% theta + gmm_off(data))))
   residuals <- as.vector(Y - prob)
-  g <- residuals * X
+  g <- (gmm_w(data) * residuals) * X
   return(g)
 }
 
@@ -41,7 +64,7 @@ logit_moments <- function(theta, data) {
 logit_resid <- function(gmmo) {
   Y <- gmmo$dat$y
   X <- gmmo$dat$x
-  prob <- 1 / (1 + exp(-1 * (X %*% gmmo$coefficients)))
+  prob <- 1 / (1 + exp(-1 * (X %*% gmmo$coefficients + gmm_off(gmmo$dat))))
   residuals <- as.vector(Y - prob)
   return(residuals)
 }
@@ -54,7 +77,7 @@ logit_resid <- function(gmmo) {
 poisson_resid <- function(gmmo) {
   Y <- gmmo$dat$y
   X <- gmmo$dat$x
-  lambda_hat <- exp(X %*% gmmo$coefficients)
+  lambda_hat <- exp(X %*% gmmo$coefficients + gmm_off(gmmo$dat))
   residuals <- as.vector(Y - lambda_hat)
   return(residuals)
 }
@@ -79,14 +102,15 @@ negbin_moments <- function(theta, data) {
   beta   <- theta[1:p]
   alpha  <- exp(theta[p + 1])  # ensure alpha > 0
 
-  mu   <- as.vector(exp(X %*% beta))
+  mu   <- as.vector(exp(X %*% beta + gmm_off(data)))
   resid <- Y - mu
   V    <- mu + alpha * mu^2
+  w    <- gmm_w(data)
 
   # Moment 1: E[(Y - mu) * X / V] = 0  (score-type)
-  g1 <- (resid / V) * X
+  g1 <- (w * resid / V) * X
   # Moment 2: E[(Y - mu)^2 / V - 1] = 0  (variance moment)
-  g2 <- (resid^2 / V) - 1
+  g2 <- w * ((resid^2 / V) - 1)
 
   cbind(g1, g2)
 }
@@ -103,7 +127,7 @@ negbin_resid <- function(gmmo) {
   X <- data.matrix(gmmo$dat$x)
   p <- ncol(X)
   beta <- gmmo$coefficients[1:p]
-  mu   <- as.vector(exp(X %*% beta))
+  mu   <- as.vector(exp(X %*% beta + gmm_off(gmmo$dat)))
   as.vector(Y - mu)
 }
 
@@ -129,19 +153,20 @@ zip_moments <- function(theta, data) {
   beta <- theta[1:p]
   pi_z <- 1 / (1 + exp(-theta[p + 1]))  # zero-inflation prob
 
-  lambda <- as.vector(exp(X %*% beta))
+  lambda <- as.vector(exp(X %*% beta + gmm_off(data)))
   # E[Y] under ZIP = (1 - pi) * lambda
   mu    <- (1 - pi_z) * lambda
   resid <- Y - mu
+  w     <- gmm_w(data)
 
   # Moment 1: score w.r.t. beta: E[(Y - mu) * X] = 0
-  g1 <- resid * X
+  g1 <- (w * resid) * X
 
   # Moment 2: zero indicator moment
   # P(Y=0) = pi + (1-pi)*exp(-lambda)
   p0 <- pi_z + (1 - pi_z) * exp(-lambda)
   is_zero <- as.numeric(Y == 0)
-  g2 <- is_zero - p0
+  g2 <- w * (is_zero - p0)
 
   cbind(g1, g2)
 }
@@ -159,7 +184,7 @@ zip_resid <- function(gmmo) {
   p <- ncol(X)
   beta <- gmmo$coefficients[1:p]
   pi_z <- 1 / (1 + exp(-gmmo$coefficients[p + 1]))
-  lambda <- as.vector(exp(X %*% beta))
+  lambda <- as.vector(exp(X %*% beta + gmm_off(gmmo$dat)))
   mu <- (1 - pi_z) * lambda
   as.vector(Y - mu)
 }
@@ -184,17 +209,22 @@ zip_resid <- function(gmmo) {
 #'   column, exactly as \code{fit_qap_model()} builds it.
 #' @param family Character; \code{"binomial"}, \code{"poisson"},
 #'   \code{"negbin"} or \code{"zip"}.
+#' @param w Numeric vector of prior weights, or NULL.
+#' @param off Numeric vector of offsets, or NULL.
 #'
 #' @return Numeric vector of starting values: one per column of \code{X}, plus
 #'   a nuisance start for \code{negbin} (\code{log(alpha)}) and \code{zip}
 #'   (\code{logit(pi)}).
 #' @keywords internal
 
-gmm_start <- function(y, X, family) {
+gmm_start <- function(y, X, family, w = NULL, off = NULL) {
   fam <- if (family == "binomial") stats::binomial() else stats::poisson()
 
   b <- tryCatch(
-    suppressWarnings(stats::glm.fit(X, y, family = fam)$coefficients),
+    suppressWarnings(stats::glm.fit(
+      X, y, family = fam,
+      weights = if (is.null(w)) rep(1, length(y)) else w,
+      offset  = if (is.null(off)) rep(0, length(y)) else off)$coefficients),
     error = function(e) rep(0, ncol(X))
   )
   # A separated or rank-deficient design yields NA/Inf coefficients; zero is

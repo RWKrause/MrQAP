@@ -4,7 +4,7 @@
 \alias{gmm_start}
 \title{Deterministic starting values for a GMM fit}
 \usage{
-gmm_start(y, X, family)
+gmm_start(y, X, family, w = NULL, off = NULL)
 }
 \arguments{
 \item{y}{Numeric vector; the response.}
@@ -14,6 +14,10 @@ column, exactly as \code{fit_qap_model()} builds it.}
 
 \item{family}{Character; \code{"binomial"}, \code{"poisson"},
 \code{"negbin"} or \code{"zip"}.}
+
+\item{w}{Numeric vector of prior weights, or NULL.}
+
+\item{off}{Numeric vector of offsets, or NULL.}
 }
 \value{
 Numeric vector of starting values: one per column of \code{X}, plus

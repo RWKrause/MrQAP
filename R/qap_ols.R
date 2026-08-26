@@ -23,18 +23,23 @@
 #' @param family,estimator,has_random,use_fixest,comparison Model settings.
 #' @param data Named list of matrices or arrays.
 #' @param vars Character; the variables that will be vectorised.
+#' @param has_wo Logical; were weights or an offset supplied?
 #'
 #' @return Logical.
 #' @keywords internal
 
 qap_ols_eligible <- function(family, estimator, has_random, use_fixest,
-                             comparison, data, vars) {
+                             comparison, data, vars, has_wo = FALSE) {
   # Escape hatch used by the tests to check that the fast and general paths
   # agree, and available to users if the fast path is ever suspected.
   if (isTRUE(getOption("MrQAP.disable_fast_ols", FALSE))) return(FALSE)
 
   if (family != "gaussian" || estimator != "standard") return(FALSE)
   if (has_random || use_fixest || !is.null(comparison)) return(FALSE)
+  # Weighted least squares would need the weights inside the FWL
+  # decomposition and inside HC3; the formula path already handles both
+  # correctly, so weighted fits take it.
+  if (has_wo) return(FALSE)
 
   for (v in vars) {
     obj <- data[[v]]
@@ -45,6 +50,49 @@ qap_ols_eligible <- function(family, estimator, has_random, use_fixest,
     }
   }
   TRUE
+}
+
+
+#' Which cells of a network enter the model
+#'
+#' The structural exclusions, in one place: the diagonal (self-ties), and
+#' the lower triangle in undirected mode, where each dyad must contribute
+#' exactly one observation. Neither applies to multi-mode data, where the
+#' dimensions index disjoint node sets and there is no diagonal to drop and
+#' no reciprocal dyad to deduplicate.
+#'
+#' Shared by \code{qap_ols_template()}, which needs the mask to vectorise
+#' the data, and by \code{predict.QAP()}, which needs it to put a vector of
+#' fitted values back into the shape of the network.
+#'
+#' @param d Integer vector of dimensions.
+#' @param css Logical; a 3-D CSS array?
+#' @param mode Character; \code{"directed"} or \code{"undirected"}.
+#' @param diag Logical; keep the diagonal?
+#' @param multi_mode Logical; is each dimension its own node set?
+#'
+#' @return A logical vector, one element per cell, in the package's
+#'   vectorisation order.
+#' @keywords internal
+
+qap_valid_mask <- function(d, css = FALSE, mode = "directed", diag = FALSE,
+                           multi_mode = FALSE) {
+  if (css) {
+    v <- array(TRUE, dim = d)
+    if (!multi_mode) {
+      if (!diag) for (i in seq_len(d[3])) diag(v[, , i]) <- FALSE
+      if (mode == "undirected")
+        for (i in seq_len(d[3])) v[, , i][lower.tri(v[, , i])] <- FALSE
+    }
+    return(array_to_vector(v, mode. = mode, diag. = diag))
+  }
+
+  v <- matrix(TRUE, d[1], d[2])
+  if (!multi_mode) {
+    if (mode == "undirected") v[lower.tri(v)] <- FALSE
+    if (!diag) diag(v) <- FALSE
+  }
+  as.vector(v)
 }
 
 
@@ -73,25 +121,9 @@ qap_ols_template <- function(data, dep, main, diag, mode, css, large,
     function(m) as.vector(m)
   }
 
-  valid_of <- function(y) {
-    d <- dim(y)
-    if (css) {
-      v <- array(TRUE, dim = d)
-      if (!multi_mode) {
-        if (!diag) for (i in seq_len(d[3])) diag(v[, , i]) <- FALSE
-        if (mode == "undirected")
-          for (i in seq_len(d[3])) v[, , i][lower.tri(v[, , i])] <- FALSE
-      }
-      av(v)
-    } else {
-      v <- matrix(TRUE, d[1], d[2])
-      if (!multi_mode) {
-        if (mode == "undirected") v[lower.tri(v)] <- FALSE
-        if (!diag) diag(v) <- FALSE
-      }
-      as.vector(v)
-    }
-  }
+  valid_of <- function(y)
+    qap_valid_mask(dim(y), css = css, mode = mode, diag = diag,
+                   multi_mode = multi_mode)
 
   if (!large) {
     vv <- list(valid_of(data[[dep]]))

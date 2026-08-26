@@ -276,6 +276,17 @@ fit_qap_model <- function(mod, pred, family,
   dep_var <- all.vars(mod)[1]
   nx  <- length(main_vars)
 
+  # Prior weights and the offset travel as reserved columns of pred rather
+  # than as formula terms, so they never enter the model matrix, never get
+  # residualised as predictors, and never get permuted. Passed to each
+  # estimator as plain vectors: the formula interface would look them up in
+  # `data` by name, which breaks as soon as the frame is subset.
+  qw <- pred[[".qap_weights"]]
+  qo <- pred[[".qap_offset"]]
+  wo <- list()
+  if (!is.null(qw)) wo$weights <- qw
+  if (!is.null(qo)) wo$offset  <- qo
+
   # --- multinomial ---
   if (family == "multinom") {
     pred[[dep_var]] <- as.factor(pred[[dep_var]])
@@ -284,7 +295,12 @@ fit_qap_model <- function(mod, pred, family,
     }
     if (!requireNamespace("nnet", quietly = TRUE))
       stop("Package 'nnet' is required for multinomial models.")
-    base_model       <- nnet::multinom(mod, data = pred, trace = FALSE)
+    if (!is.null(qo))
+      stop("offset= is not supported for multinomial models: ",
+           "nnet::multinom() has no offset argument.")
+    base_model <- do.call(nnet::multinom,
+                          c(list(mod, data = pred, trace = FALSE),
+                            if (is.null(qw)) list() else list(weights = qw)))
     fit$coefficients <- coefficients(base_model)
     fit$t            <- coefficients(base_model) /
                           summary(base_model)$standard.errors
@@ -299,6 +315,13 @@ fit_qap_model <- function(mod, pred, family,
     y_vec <- pred[[dep_var]]
     x_mat <- cbind(1, as.matrix(pred[, main_vars, drop = FALSE]))
 
+    # gmm() passes its `x` straight to the moment function, so weights and
+    # the offset ride along in the same list. gmm_w()/gmm_off() default
+    # them to 1 and 0, leaving an unweighted fit bit-identical.
+    gdat <- list(y = y_vec, x = x_mat)
+    if (!is.null(qw)) gdat$w   <- qw
+    if (!is.null(qo)) gdat$off <- qo
+
     if (!family %in% c("binomial", "poisson", "negbin", "zip"))
       stop("GMM estimator is available for binomial, poisson, negbin, ",
            "and zip families.")
@@ -307,8 +330,8 @@ fit_qap_model <- function(mod, pred, family,
     # previous rnorm() start was redrawn on every permutation and overflowed
     # the exp() in the count moment conditions routinely.
     gmm_args <- list(
-      x  = list(y = y_vec, x = x_mat),
-      t0 = gmm_start(y_vec, x_mat, family),
+      x  = gdat,
+      t0 = gmm_start(y_vec, x_mat, family, w = qw, off = qo),
       wmatrix = "optimal", vcov = "MDS",
       optfct = "nlminb",
       control = list(eval.max = 10000)
@@ -354,9 +377,9 @@ fit_qap_model <- function(mod, pred, family,
       # glmmTMB for mixed ZIP
       if (!requireNamespace("glmmTMB", quietly = TRUE))
         stop("Package 'glmmTMB' is required for mixed ZIP models.")
-      base_model <- glmmTMB::glmmTMB(mod, data = pred,
-                                      family = poisson(),
-                                      ziformula = ~1)
+      base_model <- do.call(glmmTMB::glmmTMB,
+                            c(list(mod, data = pred, family = poisson(),
+                                   ziformula = ~1), wo))
       fit$coefficients <- glmmTMB::fixef(base_model)$cond
       if (use_robust_errors) robust_se(base_model)  # warns; not available
       fit$t <- align_to_coefs(summary(base_model)$coefficients$cond[, 3],
@@ -370,7 +393,8 @@ fit_qap_model <- function(mod, pred, family,
     } else {
       if (!requireNamespace("pscl", quietly = TRUE))
         stop("Package 'pscl' is required for zero-inflated Poisson models.")
-      base_model <- pscl::zeroinfl(mod, data = pred, dist = "poisson")
+      base_model <- do.call(pscl::zeroinfl,
+                            c(list(mod, data = pred, dist = "poisson"), wo))
       fit$coefficients <- base_model$coefficients$count
 
       se <- if (use_robust_errors) robust_se(base_model) else NULL
@@ -396,9 +420,9 @@ fit_qap_model <- function(mod, pred, family,
       if (!requireNamespace("fixest", quietly = TRUE))
         stop("Package 'fixest' is required when fixest_se_cluster or fixed effects with | ")
       fe_family <- if (family == "negbin") "negbin" else family
-      base_model <- fixest::feglm(mod, data = pred,
-                                  family = fe_family,
-                                  cluster = fixest_se_cluster)
+      base_model <- do.call(fixest::feglm,
+                            c(list(mod, data = pred, family = fe_family,
+                                   cluster = fixest_se_cluster), wo))
       fit$coefficients <- c("(Intercept)" = NA, base_model$coefficients)
 
       # fixest computes its own heteroskedasticity-robust vcov on the demeaned
@@ -422,14 +446,15 @@ fit_qap_model <- function(mod, pred, family,
       }
     } else {
       if (family == "gaussian") {
-        base_model <- lm(mod, data = pred)
+        base_model <- do.call(lm, c(list(mod, data = pred), wo))
       } else if (family == "negbin") {
         if (!requireNamespace("MASS", quietly = TRUE))
           stop("Package 'MASS' is required for negative binomial models.")
-        base_model <- MASS::glm.nb(mod, data = pred)
+        base_model <- do.call(MASS::glm.nb, c(list(mod, data = pred), wo))
         if (baseline) fit$theta <- base_model$theta
       } else {
-        base_model <- glm(mod, data = pred, family = family)
+        base_model <- do.call(glm,
+                              c(list(mod, data = pred, family = family), wo))
       }
       fit$coefficients <- base_model$coefficients
 
@@ -467,13 +492,14 @@ fit_qap_model <- function(mod, pred, family,
     if (family == "gaussian") {
       if (!requireNamespace("lme4", quietly = TRUE))
         stop("Package 'lme4' is required for  random effects.")
-      base_model <- lme4::lmer(mod, data = pred)
+      base_model <- do.call(lme4::lmer, c(list(mod, data = pred), wo))
     } else if (family == "negbin") {
       # glmmTMB for mixed negative binomial
       if (!requireNamespace("glmmTMB", quietly = TRUE))
         stop("Package 'glmmTMB' is required for mixed negative binomial models.")
-      base_model <- glmmTMB::glmmTMB(mod, data = pred,
-                                      family = glmmTMB::nbinom2())
+      base_model <- do.call(glmmTMB::glmmTMB,
+                            c(list(mod, data = pred,
+                                   family = glmmTMB::nbinom2()), wo))
       fit$coefficients <- glmmTMB::fixef(base_model)$cond
       if (use_robust_errors) robust_se(base_model)  # warns; not available
       fit$t <- align_to_coefs(summary(base_model)$coefficients$cond[, 3],
@@ -489,11 +515,12 @@ fit_qap_model <- function(mod, pred, family,
     } else {
       if (!requireNamespace("lme4", quietly = TRUE))
         stop("Package 'lme4' is required for  random effects.")
-      base_model <- lme4::glmer(mod, data = pred, family = family,
-                                control = lme4::glmerControl(
-                                  calc.derivs = FALSE,
-                                  optimizer   = "bobyqa"),
-                                nAGQ = 0)
+      base_model <- do.call(lme4::glmer,
+                            c(list(mod, data = pred, family = family,
+                                   control = lme4::glmerControl(
+                                     calc.derivs = FALSE,
+                                     optimizer   = "bobyqa"),
+                                   nAGQ = 0), wo))
       fit$log_lik <- logLik(base_model)
     }
 
@@ -940,12 +967,22 @@ residualise_predictor <- function(xi, pred, main_vars,
   }
   modx <- as.formula(modx_str)
 
+  # Residualise under the same weights the outcome model uses, so the
+  # semi-partialling is orthogonal in the metric the estimator actually
+  # works in. The offset belongs to the outcome model and has no place in a
+  # predictor-on-predictor regression, so it is not carried over.
+  wo <- if (is.null(pred[[".qap_weights"]])) {
+    list()
+  } else {
+    list(weights = pred[[".qap_weights"]])
+  }
+
   if (!has_random) {
-    xm <- lm(modx, data = pred)
+    xm <- do.call(lm, c(list(modx, data = pred), wo))
   } else {
     if (!requireNamespace("lme4", quietly = TRUE))
       stop("Package 'lme4' is required for  random effects.")
-    xm <- lme4::lmer(modx, data = pred)
+    xm <- do.call(lme4::lmer, c(list(modx, data = pred), wo))
   }
   residuals(xm)
 }

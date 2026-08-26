@@ -6,6 +6,8 @@ S3method(confint,QAP)
 S3method(fitted,QAP)
 S3method(logLik,QAP)
 S3method(nobs,QAP)
+S3method(plot,QAP)
+S3method(predict,QAP)
 S3method(print,QAPCSS)
 S3method(print,QAPConfusionMatrix)
 S3method(print,QAPGLM)
@@ -20,22 +22,31 @@ export(combine_qap_estimates)
 export(df_to_mat)
 export(gpu_available)
 export(probabilistic_confusion_matrix)
+importFrom(graphics,
+  abline,
+  box,
+  hist
+)
 importFrom(purrr,transpose)
 importFrom(stats,
   AIC,
   BIC,
   as.formula,
+  binomial,
   coef,
   coefficients,
   confint,
   cor,
   fitted,
+  formula,
   glm,
+  glm.fit,
   lm,
   logLik,
   na.omit,
   nobs,
   poisson,
+  predict,
   qnorm,
   quantile,
   rbinom,
@@ -46,3 +57,4 @@ importFrom(stats,
   setNames,
   vcov
 )
+importFrom(utils,head)

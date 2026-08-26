@@ -126,7 +126,12 @@ QAPPermEst <- function(i,
     }
 
     x_ok <- TRUE
-    num_preds <- pred[, data_vars.[data_vars. %in% names(pred)], drop = FALSE]
+    # Reserved columns are weights and the offset, not predictors. A
+    # constant weight vector is perfectly legitimate, so including them
+    # here would make the degeneracy guard reject every permutation.
+    check_vars <- setdiff(data_vars.[data_vars. %in% names(pred)],
+                          c(".qap_weights", ".qap_offset"))
+    num_preds <- pred[, check_vars, drop = FALSE]
     num_preds <- num_preds[, vapply(num_preds, is.numeric, logical(1)),
                            drop = FALSE]
     if (ncol(num_preds) > 0) {

@@ -23,6 +23,8 @@ QAP(
   random_intercept_sender = FALSE,
   random_intercept_receiver = FALSE,
   random_intercept_perceiver = FALSE,
+  weights = NULL,
+  offset = NULL,
   use_robust_errors = FALSE,
   less_mem = FALSE,
   use_gpu = FALSE,
@@ -88,6 +90,21 @@ comparison models).}
 
 \item{random_intercept_nets, random_intercept_sender, random_intercept_receiver, random_intercept_perceiver}{Logical; add random intercepts for networks, senders, receivers and
 (CSS only) perceivers.}
+
+\item{weights, offset}{Optional prior weights and offset, each a matrix
+  or array shaped exactly like the dependent variable (or a list of them,
+  for several networks).  \code{weights} scales each dyad's contribution
+  to the fit; \code{offset} enters the linear predictor with its
+  coefficient fixed at one, which is how exposure is handled in count
+  models.  Both are supported for every family and for both estimators,
+  including GMM, where they enter the moment conditions.  Multinomial
+  fits accept \code{weights} but not \code{offset}.
+
+  \strong{Permutation semantics:} a weight and an offset are properties
+  of the cell, not of the actors, so they stay in place while the
+  outcome (or the tested predictor) is permuted.  They are part of the
+  fixed design against which the null distribution is generated, not
+  quantities that travel with the relabelling.}
 
 \item{use_robust_errors}{Logical; use heteroskedasticity-consistent
 standard errors.  HC3 for linear models, the GLM sandwich otherwise.

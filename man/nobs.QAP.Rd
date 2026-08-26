@@ -12,8 +12,8 @@
 \item{...}{Ignored.}
 }
 \value{
-Integer, or \code{NA} if the fitted model was not retained
-  (\code{less_mem = TRUE}).
+Integer.  Recorded at fit time, so it is available even when the
+  model object was dropped by \code{less_mem = TRUE}.
 }
 \description{
 The number of dyads (or triads, for CSS data) that entered the model,

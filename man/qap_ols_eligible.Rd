@@ -11,7 +11,8 @@ qap_ols_eligible(
   use_fixest,
   comparison,
   data,
-  vars
+  vars,
+  has_wo = FALSE
 )
 }
 \arguments{
@@ -20,6 +21,8 @@ qap_ols_eligible(
 \item{data}{Named list of matrices or arrays.}
 
 \item{vars}{Character; the variables that will be vectorised.}
+
+\item{has_wo}{Logical; were weights or an offset supplied?}
 }
 \value{
 Logical.

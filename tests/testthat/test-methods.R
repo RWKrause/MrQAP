@@ -236,7 +236,11 @@ test_that("extractors needing the model object fail clearly under less_mem", {
   expect_error(residuals(f), "less_mem")
   expect_error(logLik(f), "less_mem")
   expect_error(vcov(f), "less_mem")
-  expect_true(is.na(nobs(f)))
+  # nobs() does NOT need the model object: the count is recorded when the
+  # data are vectorised, so less_mem no longer costs it.
+  full <- QAP(y ~ x1 + x2, data = md(), reps = 20, seed = 1)
+  expect_equal(nobs(f), nobs(full))
+  expect_false(is.na(nobs(f)))
   # coef still works: it does not need the model object
   expect_named(coef(f), c("(Intercept)", "x1", "x2"))
 })

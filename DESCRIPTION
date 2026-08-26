@@ -31,10 +31,13 @@ Depends:
 Imports:
     future,
     future.apply,
+    graphics,
     purrr,
     reformulas,
-    stats
+    stats,
+    utils
 Suggests:
+    broom,
     fixest,
     glmmTMB,
     gmm,
