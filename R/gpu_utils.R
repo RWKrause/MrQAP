@@ -1,373 +1,305 @@
+# ============================================================
+# GPU-accelerated batch OLS.
+#
+# The torch algebra lives in gpu_solve_fixed_x() and gpu_solve_varying_x(),
+# deliberately kept as small functions over plain R arrays so they can be
+# checked directly against the CPU solver -- see tests/testthat/test-gpu.R,
+# which does exactly that whenever torch is installed.
+#
+# gpu_batch_ols() additionally re-checks its own first batch at runtime and
+# stops loudly on disagreement, so a torch or driver change that breaks the
+# translation surfaces immediately rather than as quietly wrong p-values.
+# ============================================================
+
 #' GPU-accelerated batch OLS for QAP permutations
 #'
-#' Uses the \pkg{torch} package to compute OLS regressions for many
-#' permutations simultaneously on a GPU (or CPU via torch).  Only applicable
-#' when \code{family = "gaussian"}, no random effects, no fixed effects, and
-#' no comparisons.
+#' Solves many permuted OLS problems at once on a GPU via \pkg{torch}.  Only
+#' applies to \code{family = "gaussian"} with no random effects, no fixed
+#' effects and no comparisons.
 #'
-#' The approach pre-computes \eqn{M = (X'X)^{-1} X'}, then for \code{reps}
-#' permutations constructs a matrix \eqn{Y_{perm}} (qapy) or swaps a single
-#' predictor column (qapspp) and recomputes \eqn{M} per batch.  All betas and
-#' t-values are obtained via batch matrix multiplications.
+#' Under \code{qapy} the design matrix is fixed, so its projection is formed
+#' once and each batch is a single matrix product.  Under \code{qapspp} one
+#' column of the design changes every permutation, so a batch of designs is
+#' stacked into a 3D tensor and solved with batched operations rather than
+#' one small solve per permutation.
 #'
-#' @param data Named list of matrices (same as in \code{QAPglm}).
-#' @param parsed Output of \code{parse_qap_formula()}.
-#' @param mode Character; "digraph" or "graph".
-#' @param diag Logical; include diagonal?
-#' @param groups Vector or NULL; permutation groups.
+#' @param tmpl Output of \code{qap_ols_template()}.
+#' @param data Named list of matrices or arrays.
+#' @param dep Character; dependent variable name.
+#' @param main Character; predictor names.
+#' @param groups Permutation grouping.
 #' @param reps Integer; number of permutations.
 #' @param baseline_fit Baseline fit from \code{fit_qap_model()}.
-#' @param perm_var Character or NULL; variable to permute for qapspp.
-#'   When NULL, Y is permuted (qapy).
-#' @param batch_size Integer; permutations per GPU batch (default 500).
-#' @param device Character; "cuda" for GPU, "cpu" for CPU torch.
+#' @param perm_var Character or NULL; the variable to permute (qapspp).  When
+#'   NULL the outcome is permuted (qapy).
+#' @param css,multi_mode Structure flags, passed to \code{perm_networks()}.
+#' @param use_robust_errors Logical; must match the baseline fit.
+#' @param batch_size Integer or NULL; permutations per batch.  \code{NULL}
+#'   sizes the batch from the problem so one batch stays near 64 MB.
+#' @param device Character; \code{"cuda"} or \code{"cpu"}.
 #'
-#' @return A list with \code{lower}, \code{larger}, \code{abs} proportion
-#'   matrices (same format as QAPglm output).
+#' @return A list with \code{lower}, \code{larger}, \code{abs}.
 #' @keywords internal
 
-gpu_batch_ols <- function(data, parsed, mode, diag, groups, reps,
-                          baseline_fit, perm_var = NULL,
-                          batch_size = 500, device = "cuda") {
+gpu_batch_ols <- function(tmpl, data, dep, main, groups, reps, baseline_fit,
+                          perm_var = NULL, css = FALSE, multi_mode = FALSE,
+                          use_robust_errors = FALSE,
+                          batch_size = NULL, device = "cuda") {
 
-  if (!requireNamespace("torch", quietly = TRUE)) {
+  if (!requireNamespace("torch", quietly = TRUE))
     stop("The 'torch' package is required for GPU acceleration. ",
          "Install it with: install.packages('torch')")
-  }
+
+  if (use_robust_errors)
+    stop("use_gpu = TRUE does not support use_robust_errors; ",
+         "run without the GPU for HC3 standard errors.")
 
   if (device == "cuda" && !torch::cuda_is_available()) {
     message("CUDA not available. Falling back to CPU torch.")
     device <- "cpu"
   }
 
-  dep  <- parsed$dependent
-  main <- parsed$main
+  X       <- tmpl$X
+  n_obs   <- tmpl$n_obs
+  p       <- tmpl$p
+  extract <- tmpl$extract
 
-  # Create baseline data frame once
-  pred0 <- make_qap_data(y    = data[[dep]],
-                          x    = data[main],
-                          g    = groups,
-                          diag = diag,
-                          mode = mode,
-                          net  = 1,
-                          perm = FALSE,
-                          xi   = NULL)
-
-  y_vec <- pred0$yv
-  X_mat <- cbind(1, as.matrix(pred0[, main, drop = FALSE]))
-  n_obs <- nrow(X_mat)
-  p     <- ncol(X_mat)
+  if (is.null(batch_size)) batch_size <- gpu_batch_size(n_obs, p)
 
   base_coefs <- baseline_fit$coefficients
   base_t     <- baseline_fit$t
+  bres       <- rbind(base_coefs, base_t)
 
-  # Accumulators
-  lower_sum  <- rep(0, length(base_coefs) * 2)
-  larger_sum <- rep(0, length(base_coefs) * 2)
-  abs_sum    <- rep(0, length(base_coefs) * 2)
+  lower_sum <- larger_sum <- abs_sum <- rep(0, length(base_coefs) * 2)
+  n_used    <- 0L
+  checked   <- FALSE
+  # Permuted statistics, retained so confint() can use the same draws the
+  # p-values come from.
+  draw_b <- matrix(NA_real_, nrow = reps, ncol = length(base_coefs),
+                   dimnames = list(NULL, names(base_coefs)))
+  draw_t <- draw_b
 
-  dim_out <- c(2, length(base_coefs))
+  target <- if (is.null(perm_var)) dep else perm_var
+  obj    <- data[[target]]
+  col    <- if (is.null(perm_var)) NA_integer_ else match(perm_var, colnames(X))
 
-  if (is.null(perm_var)) {
-    # ---- qapy: permute Y, X stays fixed ----
-    # Pre-compute projection matrix once
-    X_t      <- torch::torch_tensor(X_mat, dtype = torch::torch_float64(),
-                                    device = device)
-    XtX      <- torch::torch_mm(torch::torch_t(X_t), X_t)
-    XtXinv   <- torch::torch_inverse(XtX)
-    M        <- torch::torch_mm(XtXinv, torch::torch_t(X_t))
-    XtXinv_diag <- torch::torch_diag(XtXinv)
+  done <- 0L
+  while (done < reps) {
+    nb <- min(batch_size, reps - done)
+    Y <- NULL; Pc <- NULL
 
-    reps_done <- 0
-    while (reps_done < reps) {
-      current_batch <- min(batch_size, reps - reps_done)
+    if (is.null(perm_var)) {
+      # ---- batch of permuted responses, design fixed ----
+      Y <- vapply(seq_len(nb),
+                  function(j) extract(perm_networks(obj, groups, CSS = css,
+                                                    multi_mode = multi_mode)),
+                  numeric(n_obs))
+      sol <- gpu_solve_fixed_x(X, Y, device = device)
 
-      Y_batch <- matrix(NA_real_, nrow = n_obs, ncol = current_batch)
-      for (j in seq_len(current_batch)) {
-        y_perm <- RMPerm(data[[dep]], groups)
-        perm_pred <- make_qap_data(y    = y_perm,
-                                    x    = data[main],
-                                    g    = groups,
-                                    diag = diag,
-                                    mode = mode,
-                                    net  = 1,
-                                    perm = FALSE,
-                                    xi   = NULL)
-        Y_batch[, j] <- perm_pred$yv
+    } else {
+      # ---- batch of permuted designs, response fixed ----
+      Pc  <- gpu_perm_columns(nb, obj, extract, groups, css, multi_mode,
+                              n_obs = n_obs)
+      sol <- gpu_solve_varying_x(X, col, Pc, tmpl$y, device = device)
+    }
+    Bc <- sol$coefficients
+    Tc <- sol$t
+
+    # Cheap insurance: one batch per run is re-solved on the CPU and
+    # compared, so a torch or driver change that breaks the translation
+    # fails loudly instead of producing quietly wrong p-values.
+    if (!checked) {
+      ref <- if (is.null(perm_var)) {
+        qap_ols_solve(X, Y[, 1])
+      } else {
+        Xp <- X; Xp[, col] <- Pc[, 1]
+        qap_ols_solve(Xp, tmpl$y)
       }
-
-      Y_t <- torch::torch_tensor(Y_batch, dtype = torch::torch_float64(),
-                                  device = device)
-
-      B   <- torch::torch_mm(M, Y_t)
-      E   <- Y_t - torch::torch_mm(X_t, B)
-      MSE <- torch::torch_sum(E^2, dim = 1) / (n_obs - p)
-      SE  <- torch::torch_sqrt(torch::torch_ger(XtXinv_diag, MSE))
-      T_vals <- B / SE
-
-      B_cpu <- as.matrix(B$cpu())
-      T_cpu <- as.matrix(T_vals$cpu())
-
-      for (j in seq_len(current_batch)) {
-        pres <- rbind(B_cpu[, j], T_cpu[, j])
-        bres <- rbind(base_coefs, base_t)
-        lower_sum  <- lower_sum  + as.vector(pres <= bres)
-        larger_sum <- larger_sum + as.vector(pres >= bres)
-        abs_sum    <- abs_sum    + as.vector(abs(pres) >= abs(bres))
-      }
-
-      reps_done <- reps_done + current_batch
+      bad <- suppressWarnings(max(abs(Bc[, 1] - ref$coefficients),
+                                  abs(Tc[, 1] - ref$t), na.rm = TRUE))
+      if (!is.finite(bad) || bad > 1e-6)
+        stop("GPU batch OLS disagrees with the CPU solver (max difference ",
+             format(bad), "). This is a bug: please report it, and use ",
+             "use_gpu = FALSE in the meantime.")
+      checked <- TRUE
     }
 
-  } else {
-    # ---- qapspp: permute one predictor, rebuild X each time ----
-    # Y is fixed on the device
-    y_t <- torch::torch_tensor(matrix(y_vec, ncol = 1),
-                               dtype = torch::torch_float64(),
-                               device = device)
-
-    reps_done <- 0
-    while (reps_done < reps) {
-      current_batch <- min(batch_size, reps - reps_done)
-
-      # Collect permuted betas and t-values
-      B_batch <- matrix(NA_real_, nrow = p, ncol = current_batch)
-      T_batch <- matrix(NA_real_, nrow = p, ncol = current_batch)
-
-      for (j in seq_len(current_batch)) {
-        d_perm <- data
-        d_perm[[perm_var]] <- RMPerm(d_perm[[perm_var]], groups)
-
-        perm_pred <- make_qap_data(y    = d_perm[[dep]],
-                                    x    = d_perm[main],
-                                    g    = groups,
-                                    diag = diag,
-                                    mode = mode,
-                                    net  = 1,
-                                    perm = FALSE,
-                                    xi   = NULL)
-        X_perm <- cbind(1, as.matrix(perm_pred[, main, drop = FALSE]))
-        Xp_t   <- torch::torch_tensor(X_perm, dtype = torch::torch_float64(),
-                                       device = device)
-
-        XpXp      <- torch::torch_mm(torch::torch_t(Xp_t), Xp_t)
-        XpXp_inv  <- torch::torch_inverse(XpXp)
-        b_perm    <- torch::torch_mm(XpXp_inv,
-                                     torch::torch_mm(torch::torch_t(Xp_t), y_t))
-        e_perm    <- y_t - torch::torch_mm(Xp_t, b_perm)
-        mse_perm  <- (torch::torch_sum(e_perm^2) / (n_obs - p))$item()
-        XpXp_diag <- as.numeric(torch::torch_diag(XpXp_inv)$cpu())
-        se_perm   <- sqrt(XpXp_diag * mse_perm)
-
-        b_cpu <- as.numeric(b_perm$cpu())
-        t_cpu <- b_cpu / se_perm
-
-        B_batch[, j] <- b_cpu
-        T_batch[, j] <- t_cpu
-      }
-
-      for (j in seq_len(current_batch)) {
-        pres <- rbind(B_batch[, j], T_batch[, j])
-        bres <- rbind(base_coefs, base_t)
-        lower_sum  <- lower_sum  + as.vector(pres <= bres)
-        larger_sum <- larger_sum + as.vector(pres >= bres)
-        abs_sum    <- abs_sum    + as.vector(abs(pres) >= abs(bres))
-      }
-
-      reps_done <- reps_done + current_batch
+    for (j in seq_len(nb)) {
+      pres <- rbind(Bc[, j], Tc[, j])
+      if (!all(is.finite(pres))) next
+      n_used     <- n_used + 1L
+      lower_sum  <- lower_sum  + as.vector(pres <= bres)
+      larger_sum <- larger_sum + as.vector(pres >= bres)
+      abs_sum    <- abs_sum    + as.vector(abs(pres) >= abs(bres))
+      draw_b[n_used, ] <- pres[1, ]
+      draw_t[n_used, ] <- pres[2, ]
     }
+    done <- done + nb
   }
 
-  list(
-    lower  = matrix(lower_sum / reps,  nrow = dim_out[1], ncol = dim_out[2],
-                    dimnames = list(NULL, names(base_coefs))),
-    larger = matrix(larger_sum / reps, nrow = dim_out[1], ncol = dim_out[2],
-                    dimnames = list(NULL, names(base_coefs))),
-    abs    = matrix(abs_sum / reps,    nrow = dim_out[1], ncol = dim_out[2],
-                    dimnames = list(NULL, names(base_coefs)))
-  )
+  if (n_used == 0L) stop("All permutations failed to converge.")
+  if (n_used < reps)
+    warning(reps - n_used, " of ", reps,
+            " permutations failed and were excluded.")
+
+  mk <- function(v) matrix(v / n_used, nrow = 2, ncol = length(base_coefs),
+                           dimnames = list(qap_stat_rows(),
+                                           names(base_coefs)))
+  keep <- seq_len(n_used)
+  list(lower = mk(lower_sum), larger = mk(larger_sum), abs = mk(abs_sum),
+       draws = list(b = draw_b[keep, , drop = FALSE],
+                    t = draw_t[keep, , drop = FALSE]))
 }
 
 
-#' GPU-accelerated batch OLS for CSS permutations
+#' Batched OLS with a fixed design matrix
 #'
-#' CSS variant of \code{gpu_batch_ols}.  Handles 3D arrays and CSS-specific
-#' permutation (\code{RMPerm(..., CSS = TRUE)}).
+#' Solves \code{ncol(Y)} regressions of the columns of \code{Y} on a single
+#' \code{X}.  Because the design does not change, its projection is formed
+#' once and the whole batch is one matrix product.
 #'
-#' @param data Named list of 3D arrays (same as in \code{QAPcss}).
-#' @param parsed Output of \code{parse_qap_formula()}.
-#' @param mode Character; "directed" or "undirected".
-#' @param diag Logical; include diagonal?
-#' @param groups Vector or NULL; permutation groups.
-#' @param reps Integer; number of permutations.
-#' @param baseline_fit Baseline fit from \code{fit_qap_model()}.
-#' @param perm_var Character or NULL; variable to permute for qapspp.
-#' @param batch_size Integer; permutations per GPU batch (default 500).
-#' @param device Character; "cuda" for GPU, "cpu" for CPU torch.
+#' Kept separate from \code{gpu_batch_ols()} so the torch algebra can be
+#' checked directly against \code{qap_ols_solve()} -- see
+#' \code{tests/testthat/test-gpu.R}.
 #'
-#' @return A list with \code{lower}, \code{larger}, \code{abs} proportion
-#'   matrices.
+#' @param X Numeric matrix (n x p), including the intercept column.
+#' @param Y Numeric matrix (n x B) of responses, one per permutation.
+#' @param device Character; \code{"cuda"} or \code{"cpu"}.
+#'
+#' @return A list with \code{coefficients} and \code{t}, each \code{p x B}.
 #' @keywords internal
 
-gpu_batch_ols_css <- function(data, parsed, mode, diag, groups, reps,
-                              baseline_fit, perm_var = NULL,
-                              batch_size = 500, device = "cuda") {
+gpu_solve_fixed_x <- function(X, Y, device = "cpu") {
+  n_obs <- nrow(X)
+  p     <- ncol(X)
+  tt <- function(m) torch::torch_tensor(m, dtype = torch::torch_float64(),
+                                        device = device)
 
-  if (!requireNamespace("torch", quietly = TRUE)) {
-    stop("The 'torch' package is required for GPU acceleration. ",
-         "Install it with: install.packages('torch')")
-  }
+  X_t         <- tt(X)
+  XtX         <- torch::torch_mm(torch::torch_t(X_t), X_t)
+  XtXinv      <- torch::torch_inverse(XtX)
+  M           <- torch::torch_mm(XtXinv, torch::torch_t(X_t))
+  XtXinv_diag <- torch::torch_diag(XtXinv)
 
-  if (device == "cuda" && !torch::cuda_is_available()) {
-    message("CUDA not available. Falling back to CPU torch.")
-    device <- "cpu"
-  }
+  Y_t <- tt(Y)
+  B   <- torch::torch_mm(M, Y_t)
+  E   <- Y_t - torch::torch_mm(X_t, B)
+  MSE <- torch::torch_sum(E^2, dim = 1) / (n_obs - p)
+  SE  <- torch::torch_sqrt(torch::torch_ger(XtXinv_diag, MSE))
 
-  dep  <- parsed$dependent
-  main <- parsed$main
-  data_vars <- parsed$all_data_vars
+  list(coefficients = as.matrix(B$cpu()),
+       t            = as.matrix((B / SE)$cpu()))
+}
 
-  # Create baseline data frame once
-  x_list <- lapply(data_vars, function(v) data[[v]])
-  names(x_list) <- data_vars
-  cssd  <- make_css_data(y = data[[dep]], x = x_list,
-                         nets = 1, diag = diag, mode = mode)
-  pred0 <- cssd$pred
 
-  y_vec <- pred0$yv
-  X_mat <- cbind(1, as.matrix(pred0[, main, drop = FALSE]))
-  n_obs <- nrow(X_mat)
-  p     <- ncol(X_mat)
+#' Batched OLS with a design matrix that changes per permutation
+#'
+#' Solves \code{dim(Xb)[1]} regressions of a single \code{y} on the stacked
+#' designs in \code{Xb}, using batched tensor operations rather than one
+#' small solve per permutation.
+#'
+#' Kept separate from \code{gpu_batch_ols()} so the torch algebra can be
+#' checked directly against \code{qap_ols_solve()}.
+#'
+#' @param X Numeric matrix (n x p); the design, whose column \code{col} is
+#'   replaced per permutation.
+#' @param col Integer; index of the column that varies.
+#' @param Pcols Numeric matrix (n x B); the permuted values of that column,
+#'   one column per permutation.
+#' @param y Numeric response vector of length n.
+#' @param device Character; \code{"cuda"} or \code{"cpu"}.
+#'
+#' @return A list with \code{coefficients} and \code{t}, each \code{p x B}.
+#' @keywords internal
 
-  base_coefs <- baseline_fit$coefficients
-  base_t     <- baseline_fit$t
+gpu_solve_varying_x <- function(X, col, Pcols, y, device = "cpu") {
+  nb    <- ncol(Pcols)
+  n_obs <- nrow(X)
+  p     <- ncol(X)
+  tt <- function(m) torch::torch_tensor(m, dtype = torch::torch_float64(),
+                                        device = device)
 
-  # Accumulators
-  lower_sum  <- rep(0, length(base_coefs) * 2)
-  larger_sum <- rep(0, length(base_coefs) * 2)
-  abs_sum    <- rep(0, length(base_coefs) * 2)
+  # Only the varying column crosses the bus. Building the full B x n x p
+  # stack on the CPU would copy (and transfer) p times more data than the
+  # permutation actually changes.
+  Xb_t <- tt(X)$unsqueeze(1L)$expand(c(nb, n_obs, p))$clone()
+  Xb_t[, , col] <- tt(t(Pcols))
+  y_t  <- tt(matrix(y, ncol = 1))
 
-  dim_out <- c(2, length(base_coefs))
+  Xt   <- Xb_t$transpose(2L, 3L)
+  XtX  <- torch::torch_bmm(Xt, Xb_t)
+  yb   <- y_t$unsqueeze(1L)$expand(c(nb, n_obs, 1L))
+  Xty  <- torch::torch_bmm(Xt, yb)
+  Bt   <- torch::linalg_solve(XtX, Xty)
+  Et   <- yb - torch::torch_bmm(Xb_t, Bt)
+  s2   <- torch::torch_sum(Et^2, dim = 2) / (n_obs - p)
+  dinv <- torch::torch_diagonal(torch::linalg_inv(XtX), dim1 = 2L, dim2 = 3L)
+  SE   <- torch::torch_sqrt(dinv * s2)
 
-  # Helper: build vectorised data from (possibly permuted) CSS data
-  build_css_pred <- function(d) {
-    xl <- lapply(data_vars, function(v) d[[v]])
-    names(xl) <- data_vars
-    make_css_data(y = d[[dep]], x = xl,
-                  nets = 1, diag = diag, mode = mode)$pred
-  }
+  list(coefficients = t(as.matrix(Bt$squeeze(3L)$cpu())),
+       t            = t(as.matrix((Bt$squeeze(3L) / SE)$cpu())))
+}
 
-  if (is.null(perm_var)) {
-    # ---- qapy: permute Y, X stays fixed ----
-    X_t      <- torch::torch_tensor(X_mat, dtype = torch::torch_float64(),
-                                    device = device)
-    XtX      <- torch::torch_mm(torch::torch_t(X_t), X_t)
-    XtXinv   <- torch::torch_inverse(XtX)
-    M        <- torch::torch_mm(XtXinv, torch::torch_t(X_t))
-    XtXinv_diag <- torch::torch_diag(XtXinv)
 
-    reps_done <- 0
-    while (reps_done < reps) {
-      current_batch <- min(batch_size, reps - reps_done)
+#' Build a batch of permuted predictor columns
+#'
+#' Only the permuted column is materialised: the rest of the design is
+#' identical across permutations and is expanded on the device instead.
+#' Pure R, so it is testable without \pkg{torch}.
+#'
+#' @param nb Integer; batch size.
+#' @param obj The variable being permuted (matrix, array, or list thereof).
+#' @param extract Vectoriser from \code{qap_ols_template()}.
+#' @param groups,css,multi_mode Passed to \code{perm_networks()}.
+#' @param n_obs Integer; length of the vectorised column.
+#'
+#' @return An \code{n_obs x nb} matrix.
+#' @keywords internal
 
-      Y_batch <- matrix(NA_real_, nrow = n_obs, ncol = current_batch)
-      for (j in seq_len(current_batch)) {
-        d_perm <- data
-        d_perm[[dep]] <- RMPerm(d_perm[[dep]], groups, CSS = TRUE)
-        perm_pred <- build_css_pred(d_perm)
-        Y_batch[, j] <- perm_pred$yv
-      }
+gpu_perm_columns <- function(nb, obj, extract, groups,
+                             css = FALSE, multi_mode = FALSE, n_obs) {
+  vapply(seq_len(nb),
+         function(j) extract(perm_networks(obj, groups, CSS = css,
+                                           multi_mode = multi_mode)),
+         numeric(n_obs))
+}
 
-      Y_t <- torch::torch_tensor(Y_batch, dtype = torch::torch_float64(),
-                                  device = device)
 
-      B   <- torch::torch_mm(M, Y_t)
-      E   <- Y_t - torch::torch_mm(X_t, B)
-      MSE <- torch::torch_sum(E^2, dim = 1) / (n_obs - p)
-      SE  <- torch::torch_sqrt(torch::torch_ger(XtXinv_diag, MSE))
-      T_vals <- B / SE
+#' Choose a batch size that keeps one batch near a memory budget
+#'
+#' The qapspp path stacks \code{batch} copies of the design matrix, so batch
+#' size trades GPU memory against throughput.  Too small and the transfer
+#' overhead dominates: on an 8 GB card, a 200-node network ran 3.7x slower
+#' at a 64 MB budget than at 1 GB.  Past roughly 1000 permutations per batch
+#' the returns disappear, because the batch is then assembled on the CPU
+#' faster than the GPU can be kept busy.
+#'
+#' Override with \code{options(MrQAP.gpu_batch_mb = ...)} if your card has
+#' less memory to spare, or more.
+#'
+#' @param n_obs Integer; rows in the design matrix.
+#' @param p Integer; columns in the design matrix.
+#' @param budget_mb Numeric; target size of one batch, in megabytes.
+#'
+#' @return Integer batch size, at least 1 and at most 1000.
+#' @keywords internal
 
-      B_cpu <- as.matrix(B$cpu())
-      T_cpu <- as.matrix(T_vals$cpu())
-
-      for (j in seq_len(current_batch)) {
-        pres <- rbind(B_cpu[, j], T_cpu[, j])
-        bres <- rbind(base_coefs, base_t)
-        lower_sum  <- lower_sum  + as.vector(pres <= bres)
-        larger_sum <- larger_sum + as.vector(pres >= bres)
-        abs_sum    <- abs_sum    + as.vector(abs(pres) >= abs(bres))
-      }
-
-      reps_done <- reps_done + current_batch
-    }
-
-  } else {
-    # ---- qapspp: permute one predictor, rebuild X each time ----
-    y_t <- torch::torch_tensor(matrix(y_vec, ncol = 1),
-                               dtype = torch::torch_float64(),
-                               device = device)
-
-    reps_done <- 0
-    while (reps_done < reps) {
-      current_batch <- min(batch_size, reps - reps_done)
-
-      B_batch <- matrix(NA_real_, nrow = p, ncol = current_batch)
-      T_batch <- matrix(NA_real_, nrow = p, ncol = current_batch)
-
-      for (j in seq_len(current_batch)) {
-        d_perm <- data
-        d_perm[[perm_var]] <- RMPerm(d_perm[[perm_var]], groups, CSS = TRUE)
-
-        perm_pred <- build_css_pred(d_perm)
-        X_perm <- cbind(1, as.matrix(perm_pred[, main, drop = FALSE]))
-        Xp_t   <- torch::torch_tensor(X_perm, dtype = torch::torch_float64(),
-                                       device = device)
-
-        XpXp      <- torch::torch_mm(torch::torch_t(Xp_t), Xp_t)
-        XpXp_inv  <- torch::torch_inverse(XpXp)
-        b_perm    <- torch::torch_mm(XpXp_inv,
-                                     torch::torch_mm(torch::torch_t(Xp_t), y_t))
-        e_perm    <- y_t - torch::torch_mm(Xp_t, b_perm)
-        mse_perm  <- (torch::torch_sum(e_perm^2) / (n_obs - p))$item()
-        XpXp_diag <- as.numeric(torch::torch_diag(XpXp_inv)$cpu())
-        se_perm   <- sqrt(XpXp_diag * mse_perm)
-
-        b_cpu <- as.numeric(b_perm$cpu())
-        t_cpu <- b_cpu / se_perm
-
-        B_batch[, j] <- b_cpu
-        T_batch[, j] <- t_cpu
-      }
-
-      for (j in seq_len(current_batch)) {
-        pres <- rbind(B_batch[, j], T_batch[, j])
-        bres <- rbind(base_coefs, base_t)
-        lower_sum  <- lower_sum  + as.vector(pres <= bres)
-        larger_sum <- larger_sum + as.vector(pres >= bres)
-        abs_sum    <- abs_sum    + as.vector(abs(pres) >= abs(bres))
-      }
-
-      reps_done <- reps_done + current_batch
-    }
-  }
-
-  list(
-    lower  = matrix(lower_sum / reps,  nrow = dim_out[1], ncol = dim_out[2],
-                    dimnames = list(NULL, names(base_coefs))),
-    larger = matrix(larger_sum / reps, nrow = dim_out[1], ncol = dim_out[2],
-                    dimnames = list(NULL, names(base_coefs))),
-    abs    = matrix(abs_sum / reps,    nrow = dim_out[1], ncol = dim_out[2],
-                    dimnames = list(NULL, names(base_coefs)))
-  )
+gpu_batch_size <- function(n_obs, p,
+                           budget_mb = getOption("MrQAP.gpu_batch_mb", 512)) {
+  bytes_per_rep <- 8 * n_obs * p          # float64
+  max(1L, min(1000L, as.integer(budget_mb * 1e6 / bytes_per_rep)))
 }
 
 
 #' Check GPU availability
 #'
-#' @return Logical; TRUE if torch and CUDA are available.
+#' @return Logical; \code{TRUE} if both \pkg{torch} and CUDA are available.
 #' @export
+#'
+#' @examples
+#' gpu_available()
 
 gpu_available <- function() {
   if (!requireNamespace("torch", quietly = TRUE)) return(FALSE)
-  torch::cuda_is_available()
+  isTRUE(try(torch::cuda_is_available(), silent = TRUE))
 }

@@ -7,7 +7,9 @@
 combine_qap_estimates(res, res2 = NULL)
 }
 \arguments{
-\item{res}{list; either a \code{list} of \code{class} \code{QAPcss}, \code{QAPregression}, or \code{QAPglm}, or a \code{list} of multiple model outputs that should all be combined.}
+\item{res}{list; either a single fitted model of class \code{QAPCSS},
+\code{QAPRegression} or \code{QAPGLM}, or a \code{list} of several such
+models that should all be combined.}
 
 \item{res2}{list; if \code{res} is a single model output, \code{res2} is the other model output that should be combined with the first.}
 }
@@ -15,5 +17,23 @@ combine_qap_estimates(res, res2 = NULL)
 Returns a \code{list} of the \code{class} of the combined model output.
 }
 \description{
-The function combines multiple outputs of \code{QAPglm()} or \code{QAPcss()} estimated on the same data with the same predictors. Models are weighted by \code{reps} when combining, thus, \code{reps} does not need to be the same for all models in \code{res} and \code{res2}.
+Pools several runs of the SAME model on the SAME data -- for example two
+runs of 500 permutations each, giving a 1000-permutation result. Runs are
+weighted by their \code{reps}, so they need not all use the same number.
+For a model fitted with \code{comparison=}, each comparison is pooled
+separately and all of them are kept.
+}
+\examples{
+set.seed(1)
+n  <- 10
+x1 <- matrix(rnorm(n^2), n, n)
+d  <- list(y = 0.5 * x1 + matrix(rnorm(n^2), n, n), x1 = x1)
+
+# Two independent runs of 25 permutations...
+a <- QAP(y ~ x1, data = d, reps = 25, seed = 1)
+b <- QAP(y ~ x1, data = d, reps = 25, seed = 2)
+
+# ...pooled into a single 50-permutation result.
+ab <- combine_qap_estimates(a, b)
+ab$reps
 }

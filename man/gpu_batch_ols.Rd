@@ -5,54 +5,61 @@
 \title{GPU-accelerated batch OLS for QAP permutations}
 \usage{
 gpu_batch_ols(
+  tmpl,
   data,
-  parsed,
-  mode,
-  diag,
+  dep,
+  main,
   groups,
   reps,
   baseline_fit,
   perm_var = NULL,
-  batch_size = 500,
+  css = FALSE,
+  multi_mode = FALSE,
+  use_robust_errors = FALSE,
+  batch_size = NULL,
   device = "cuda"
 )
 }
 \arguments{
-\item{data}{Named list of matrices (same as in \code{QAPglm}).}
+\item{tmpl}{Output of \code{qap_ols_template()}.}
 
-\item{parsed}{Output of \code{parse_qap_formula()}.}
+\item{data}{Named list of matrices or arrays.}
 
-\item{mode}{Character; "digraph" or "graph".}
+\item{dep}{Character; dependent variable name.}
 
-\item{diag}{Logical; include diagonal?}
+\item{main}{Character; predictor names.}
 
-\item{groups}{Vector or NULL; permutation groups.}
+\item{groups}{Permutation grouping.}
 
 \item{reps}{Integer; number of permutations.}
 
 \item{baseline_fit}{Baseline fit from \code{fit_qap_model()}.}
 
-\item{perm_var}{Character or NULL; variable to permute for qapspp.
-When NULL, Y is permuted (qapy).}
+\item{perm_var}{Character or NULL; the variable to permute (qapspp).  When
+NULL the outcome is permuted (qapy).}
 
-\item{batch_size}{Integer; permutations per GPU batch (default 500).}
+\item{css, multi_mode}{Structure flags, passed to \code{perm_networks()}.}
 
-\item{device}{Character; "cuda" for GPU, "cpu" for CPU torch.}
+\item{use_robust_errors}{Logical; must match the baseline fit.}
+
+\item{batch_size}{Integer or NULL; permutations per batch.  \code{NULL}
+sizes the batch from the problem so one batch stays near 64 MB.}
+
+\item{device}{Character; \code{"cuda"} or \code{"cpu"}.}
 }
 \value{
-A list with \code{lower}, \code{larger}, \code{abs} proportion
-  matrices (same format as QAPglm output).
+A list with \code{lower}, \code{larger}, \code{abs}.
 }
 \description{
-Uses the \pkg{torch} package to compute OLS regressions for many
-permutations simultaneously on a GPU (or CPU via torch).  Only applicable
-when \code{family = "gaussian"}, no random effects, no fixed effects, and
-no comparisons.
+Solves many permuted OLS problems at once on a GPU via \pkg{torch}.  Only
+applies to \code{family = "gaussian"} with no random effects, no fixed
+effects and no comparisons.
 }
 \details{
-The approach pre-computes \eqn{M = (X'X)^{-1} X'}, then for \code{reps}
-permutations constructs a matrix \eqn{Y_{perm}} (qapy) or swaps a single
-predictor column (qapspp) and recomputes \eqn{M} per batch.  All betas and
-t-values are obtained via batch matrix multiplications.
+Under \code{qapy} the design matrix is fixed, so its projection is formed
+once and each batch is a single matrix product.  Under \code{qapspp} one
+column of the design changes every permutation, so a batch of designs is
+stacked into a 3D tensor and solved with batched operations rather than
+one small solve per permutation.
 }
 \keyword{internal}

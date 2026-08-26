@@ -2,7 +2,7 @@
 % Please edit documentation in R/print.QAPGLM.R
 \name{print.QAPGLM}
 \alias{print.QAPGLM}
-\title{Print QAPglm() results for generalized linear regressions}
+\title{Print QAP() results for generalized linear regressions}
 \usage{
 \method{print}{QAPGLM}(x, ..., print_b = FALSE, print_random = FALSE)
 }
@@ -19,5 +19,5 @@
 Invisibly returns \code{x}.
 }
 \description{
-Print QAPglm() results for generalized linear regressions
+Print QAP() results for generalized linear regressions
 }

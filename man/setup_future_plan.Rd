@@ -10,9 +10,12 @@ setup_future_plan(ncores = NULL)
 \item{ncores}{Number of cores. If NULL or 1, uses sequential processing.}
 }
 \value{
-Invisibly returns the previous plan.
+A zero-argument function that restores the previous plan and the
+  previous \code{future.globals.maxSize}.
 }
 \description{
-Set up parallel processing with the future framework
+Returns the function that undoes the change, rather than leaving the
+caller to remember which pieces of global state were touched.  Use it as
+\code{restore <- setup_future_plan(ncores); on.exit(restore(), add = TRUE)}.
 }
 \keyword{internal}

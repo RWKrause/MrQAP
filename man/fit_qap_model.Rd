@@ -14,7 +14,8 @@ fit_qap_model(
   use_robust_errors = FALSE,
   main_vars = NULL,
   has_random = FALSE,
-  reference = NULL
+  reference = NULL,
+  baseline = FALSE
 )
 }
 \arguments{
@@ -37,6 +38,12 @@ fit_qap_model(
 \item{has_random}{Logical; any random effects?}
 
 \item{reference}{Reference category for multinomial.}
+
+\item{baseline}{Logical; is this the baseline fit rather than a
+permutation?  Goodness-of-fit extras (R-squared, dispersion,
+zero-inflation coefficients) are only ever read off the baseline, so
+they are skipped for permutation fits, of which there are
+\code{reps * n_predictors}.}
 }
 \value{
 A list with \code{coefficients}, \code{t}, and \code{base_model}.

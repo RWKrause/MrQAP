@@ -1,4 +1,4 @@
-#' Print QAPglm() results for generalized linear regressions
+#' Print QAP() results for generalized linear regressions
 #'
 #' @param x An object of class \code{QAPGLM}.
 #' @param print_b Logical; also show parameter-based p-values?

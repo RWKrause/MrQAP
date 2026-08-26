@@ -2,7 +2,7 @@
 % Please edit documentation in R/make_qap_data.R
 \name{make_qap_data}
 \alias{make_qap_data}
-\title{Internal auxiliary function to make QAPglm() data}
+\title{Internal auxiliary function to make QAP() data}
 \usage{
 make_qap_data(
   y,
@@ -12,7 +12,8 @@ make_qap_data(
   mode = "digraph",
   net = 1,
   perm = FALSE,
-  xi = NULL
+  xi = NULL,
+  multi_mode = FALSE
 )
 }
 \arguments{
@@ -31,6 +32,9 @@ make_qap_data(
 \item{perm}{Logical; should a permutation be performed?}
 
 \item{xi}{Character; name of variable to permute (qapspp) or NULL (qapy).}
+
+\item{multi_mode}{Logical; do rows and columns index distinct node sets?
+If so the matrix may be rectangular and there is no diagonal to drop.}
 }
 \value{
 A data frame with columns: location, yv, nv, sv, rv, and

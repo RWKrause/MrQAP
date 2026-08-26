@@ -12,8 +12,15 @@ HC3(X, e)
 \item{e}{numeric; vector of residuals}
 }
 \value{
-Returns adjusted covariance matrix.
+Numeric vector of HC3 standard errors, one per column of
+  \code{cbind(1, X)}.
 }
 \description{
 Perform HC3 correction for heteroskedasticity
 }
+\details{
+Valid for linear models only. The leverages are computed from the
+  unweighted \code{X}, so this must not be applied to a GLM fit; use
+  \code{sandwich::vcovHC()} there instead.
+}
+\keyword{internal}

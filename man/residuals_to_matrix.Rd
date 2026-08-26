@@ -4,7 +4,7 @@
 \alias{residuals_to_matrix}
 \title{Put residuals back into matrix form}
 \usage{
-residuals_to_matrix(xR, original_matrix, pred, large = FALSE)
+residuals_to_matrix(xR, original_matrix, pred, large = FALSE, mode = "digraph")
 }
 \arguments{
 \item{xR}{Numeric vector of residuals.}
@@ -14,6 +14,11 @@ residuals_to_matrix(xR, original_matrix, pred, large = FALSE)
 \item{pred}{Data frame with \code{location} and optionally \code{nv}.}
 
 \item{large}{Logical; TRUE if y is a list of matrices.}
+
+\item{mode}{Character; \code{"digraph"} or \code{"graph"}.  In
+\code{"graph"} mode only the upper triangle is vectorised, so the
+residuals are mirrored onto the lower triangle to keep the matrix
+symmetric under permutation.}
 }
 \value{
 A matrix (or list of matrices) with residuals.

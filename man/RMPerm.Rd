@@ -2,20 +2,49 @@
 % Please edit documentation in R/RMPerm.R
 \name{RMPerm}
 \alias{RMPerm}
-\title{Internal auxiliary function to permute matrices or arrays}
+\title{Permute a network matrix or CSS array}
 \usage{
-RMPerm(m, groups = NULL, CSS = FALSE)
+RMPerm(m, groups = NULL, CSS = FALSE, multi_mode = FALSE)
 }
 \arguments{
-\item{m}{matrix, array, or list; a \code{matrix}, \code{array}, or \code{list} thereof to be permuted}
+\item{m}{A \code{matrix}, \code{array}, or \code{list} of either.}
 
-\item{groups}{vector; \code{vector} with respective grouping (see \code{?QAPglm()} and \code{?QAPcss()})}
+\item{groups}{Restricts permutation to occur only within groups.  Either a
+vector applying to every dimension, or -- for multi-mode data -- a named
+list with elements \code{sender}, \code{receiver} and (CSS)
+\code{perceiver} giving one grouping per dimension.  \code{NULL} permutes
+freely.}
 
-\item{CSS}{logical; is it a CSS structure}
+\item{CSS}{Logical; is \code{m} a cognitive social structure, i.e. should
+one node order apply across all three dimensions jointly?  When
+\code{FALSE} a 3D array is treated as a stack of independent networks and
+each slice is permuted separately.}
+
+\item{multi_mode}{Logical; does each dimension index a distinct node set
+(2- or 3-mode data)?  Defaults to \code{FALSE}, i.e. one-mode data, which
+requires a square matrix or a cubic array.}
 }
 \value{
-a permuted \code{matrix} or \code{array} or \code{list} thereof as provided in \code{m}
+The permuted object, matching the structure of \code{m}.
 }
 \description{
-Internal auxiliary function to permute matrices or arrays
+Applies a random relabelling of nodes, the permutation step underlying QAP
+inference.  Rows and columns (and for CSS, perceiver slices) are permuted
+together, so the structure of the network is preserved and only the
+correspondence between nodes and positions is randomised.
+}
+\details{
+For one-mode data every dimension indexes the same actors, so a single node
+order is drawn and applied to all of them.  For multi-mode data each
+dimension is its own node set and receives an independent order.
+}
+\examples{
+m <- matrix(1:16, 4, 4)
+RMPerm(m)
+
+# permute only within groups
+RMPerm(m, groups = c(1, 1, 2, 2))
+
+# two-mode data: rows and columns are permuted independently
+RMPerm(matrix(1:12, 3, 4), multi_mode = TRUE)
 }

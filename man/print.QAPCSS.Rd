@@ -2,7 +2,7 @@
 % Please edit documentation in R/print.qapCSS.R
 \name{print.QAPCSS}
 \alias{print.QAPCSS}
-\title{Print QAPcss() results}
+\title{Print QAP() results}
 \usage{
 \method{print}{QAPCSS}(x, ...)
 }
@@ -15,5 +15,5 @@
 Invisibly returns \code{x}.
 }
 \description{
-Print QAPcss() results
+Print QAP() results
 }

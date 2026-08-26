@@ -1,86 +1,66 @@
-#' Internal auxiliary function to shape data into internal QAPcss() format
+#' Internal auxiliary function to shape data into internal QAP() format
 #'
-#' @param y array or list; see \code{QAPcss()}
-#' @param x array or list; see \code{QAPcss()}
-#' @param nets numeric; see \code{QAPcss()}
-#' @param diag logical; see \code{QAPcss()}
-#' @param mode character; see \code{QAPcss()}
+#' @param y array or list; see \code{QAP()}
+#' @param x array or list; see \code{QAP()}
+#' @param nets numeric; see \code{QAP()}
+#' @param diag logical; see \code{QAP()}
+#' @param mode character; see \code{QAP()}
+#' @param multi_mode logical; does each dimension index a distinct node set?
+#'   If so the array may be non-cubic, and neither the diagonal nor the
+#'   triangle applies.
 #'
 #' @returns Returns vectorized CSS data
+#' @keywords internal
 
 make_css_data <- function(y,
                           x,
                           nets,
                           diag,
-                          mode) {
-  n <- dim(y)[1]
+                          mode,
+                          multi_mode = FALSE) {
+  d  <- dim(y)
   nx <- length(x)
-  valid <- array(TRUE, dim = c(n,n,n))
+  valid <- array(TRUE, dim = d)
 
-  if (!diag) {
-    for (i in 1:n) {
-      diag(y[,,i]) <- NA
-      for (var in 1:nx) {
-        diag(x[[var]][,,i]) <- NA
+  # Self-ties and reciprocity are only defined when the sender and receiver
+  # dimensions index the same actors.
+  if (!multi_mode) {
+    if (!diag) {
+      for (i in seq_len(d[3])) {
+        diag(y[, , i]) <- NA
+        for (var in seq_len(nx)) diag(x[[var]][, , i]) <- NA
       }
     }
   }
 
   valid[is.na(y)] <- FALSE
+  for (var in seq_len(nx)) valid[is.na(x[[var]])] <- FALSE
 
-  for (var in 1:nx) {
-    valid[is.na(x[[var]])] <- FALSE
-  }
-
-  if (mode == 'undirected') {
-    for (i in 1:n) {
-      y[,,i][lower.tri(y[,,i])] <- NA
-      valid[,,i][lower.tri(valid[,,i])] <- FALSE
-      for (var in 1:nx) {
-        x[[var]][,,i][lower.tri(x[[var]][,,i])] <- NA
+  if (!multi_mode && mode == 'undirected') {
+    for (i in seq_len(d[3])) {
+      y[, , i][lower.tri(y[, , i])] <- NA
+      valid[, , i][lower.tri(valid[, , i])] <- FALSE
+      for (var in seq_len(nx)) {
+        x[[var]][, , i][lower.tri(x[[var]][, , i])] <- NA
       }
     }
   }
 
-
   y[!valid] <- NA
+  for (var in seq_len(nx)) x[[var]][!valid] <- NA
 
-  for (var in 1:nx) {
-    x[[var]][!valid] <- NA
-  }
+  av <- function(a) array_to_vector(a, mode. = mode, diag. = diag)
 
-  vv <- array_to_vector(valid,
-                        mode. = mode,
-                        diag. = diag)
-  yv <- array_to_vector(y,
-                        mode. = mode,
-                        diag. = diag)[vv]
+  vv <- av(valid)
+  pred <- data.frame(yv = av(y)[vv], nv = nets)
 
-  pred <- data.frame(yv = yv,
-                     nv = nets)
+  # slice.index() gives the index along a dimension without a loop and
+  # without assuming the array is cubic.
+  pred$sv <- as.factor(av(slice.index(valid, 1L))[vv])
+  pred$rv <- as.factor(av(slice.index(valid, 2L))[vv])
+  pred$pv <- as.factor(av(slice.index(valid, 3L))[vv])
 
-  per <- sen <- rec <- array(NA, dim = c(n,n,n))
+  for (var in seq_len(nx)) pred[[names(x)[var]]] <- av(x[[var]])[vv]
 
-  for (i in 1:n) {
-    sen[i,,] <- i
-    rec[,i,] <- i
-    per[,,i] <- i
-  }
-
-  pred$sv <- as.factor(array_to_vector(sen,
-                                       mode. = mode,
-                                       diag. = diag)[vv])
-  pred$rv <- as.factor(array_to_vector(rec,
-                                       mode. = mode,
-                                       diag. = diag)[vv])
-  pred$pv <- as.factor(array_to_vector(per,
-                                       mode. = mode,
-                                       diag. = diag)[vv])
-
-  for (var in c(1:nx)) {
-    pred[[names(x)[var]]] <- array_to_vector(x[[var]],
-                                             mode. = mode,
-                                             diag. = diag)[vv]
-  }
-  return(list(pred = pred, valid = valid))
+  list(pred = pred, valid = valid)
 }

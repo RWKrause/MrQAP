@@ -7,8 +7,11 @@
 gpu_available()
 }
 \value{
-Logical; TRUE if torch and CUDA are available.
+Logical; \code{TRUE} if both \pkg{torch} and CUDA are available.
 }
 \description{
 Check GPU availability
+}
+\examples{
+gpu_available()
 }

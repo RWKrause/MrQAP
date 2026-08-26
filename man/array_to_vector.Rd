@@ -17,5 +17,7 @@ array_to_vector(ar, mode., diag.)
 Returns a vector
 }
 \description{
-Internal auxiliary function to transform an array into a vector
+Concatenates the perceiver slices of a 3D array into a single vector, in
+the order the rest of the package expects.
 }
+\keyword{internal}

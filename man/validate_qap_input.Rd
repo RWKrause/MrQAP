@@ -7,7 +7,7 @@
 validate_qap_input(data, parsed, css = FALSE)
 }
 \arguments{
-\item{data}{Named list of matrices (QAPglm) or arrays (QAPcss).}
+\item{data}{Named list of matrices (QAP) or arrays (QAP).}
 
 \item{parsed}{Output of \code{parse_qap_formula()}.}
 

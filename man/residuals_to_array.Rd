@@ -10,7 +10,8 @@ residuals_to_array(
   valid,
   pred,
   large = FALSE,
-  valid_list = NULL
+  valid_list = NULL,
+  mode = "directed"
 )
 }
 \arguments{
@@ -25,6 +26,10 @@ residuals_to_array(
 \item{large}{Logical; TRUE if y is a list of arrays.}
 
 \item{valid_list}{List of valid arrays (when large = TRUE).}
+
+\item{mode}{Character; \code{"directed"} or \code{"undirected"}.  In
+\code{"undirected"} mode only the upper triangle of each perceiver slice
+is vectorised, so the residuals are mirrored onto the lower triangle.}
 }
 \value{
 An array (or list of arrays) with residuals.

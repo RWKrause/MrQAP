@@ -26,13 +26,30 @@
 #'   }
 #'
 #' @export
+#'
+#' @examples
+#' set.seed(1)
+#' p <- runif(200)
+#' y <- rbinom(200, 1, p)
+#' probabilistic_confusion_matrix(y, p, n_draws = 200, seed = 1)
 
 probabilistic_confusion_matrix <- function(actual,
                                            predicted_prob,
                                            n_draws = 1000,
                                            seed = NULL,
                                            threshold_comparison = TRUE) {
-  if (!is.null(seed)) set.seed(seed)
+  # Do not leave the caller's RNG state altered.
+  if (!is.null(seed)) {
+    if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+      old_seed <- get(".Random.seed", envir = globalenv())
+      on.exit(assign(".Random.seed", old_seed, envir = globalenv()),
+              add = TRUE)
+    } else {
+      on.exit(suppressWarnings(rm(".Random.seed", envir = globalenv())),
+              add = TRUE)
+    }
+    set.seed(seed)
+  }
 
   n <- length(actual)
   stopifnot(length(predicted_prob) == n)

@@ -1,5 +1,5 @@
 # ============================================================
-# Tests for QAPglm (formula-based interface)
+# Tests for QAP (formula-based interface)
 # ============================================================
 
 # --- Helper: generate test data ---
@@ -22,9 +22,9 @@ make_test_data_binary <- function(n = 10, seed = 42) {
 }
 
 # ---- basic gaussian ----
-test_that("QAPglm runs with gaussian family and qapy", {
+test_that("QAP runs with gaussian family and qapy", {
   d <- make_test_data()
-  fit <- QAPglm(y ~ x1 + x2, data = d,
+  fit <- QAP(y ~ x1 + x2, data = d,
                 family = "gaussian", nullhyp = "qapy",
                 reps = 20, seed = 1, ncores = 1)
   expect_s3_class(fit, "QAPRegression")
@@ -33,9 +33,9 @@ test_that("QAPglm runs with gaussian family and qapy", {
   expect_length(fit$coefficients, 3)  # intercept + 2 predictors
 })
 
-test_that("QAPglm runs with gaussian family and qapspp", {
+test_that("QAP runs with gaussian family and qapspp", {
   d <- make_test_data()
-  fit <- QAPglm(y ~ x1 + x2, data = d,
+  fit <- QAP(y ~ x1 + x2, data = d,
                 family = "gaussian", nullhyp = "qapspp",
                 reps = 20, seed = 1, ncores = 1)
   expect_s3_class(fit, "QAPRegression")
@@ -43,9 +43,9 @@ test_that("QAPglm runs with gaussian family and qapspp", {
   expect_equal(ncol(fit$lower), 3)
 })
 
-test_that("QAPglm runs with single predictor (qapspp -> qapy fallback)", {
+test_that("QAP runs with single predictor (qapspp -> qapy fallback)", {
   d <- make_test_data()
-  fit <- QAPglm(y ~ x1, data = d,
+  fit <- QAP(y ~ x1, data = d,
                 family = "gaussian", nullhyp = "qapspp",
                 reps = 20, seed = 1)
   expect_s3_class(fit, "QAPRegression")
@@ -53,9 +53,9 @@ test_that("QAPglm runs with single predictor (qapspp -> qapy fallback)", {
 })
 
 # ---- binomial ----
-test_that("QAPglm runs with binomial family", {
+test_that("QAP runs with binomial family", {
   d <- make_test_data_binary()
-  fit <- QAPglm(y ~ x1 + x2, data = d,
+  fit <- QAP(y ~ x1 + x2, data = d,
                 family = "binomial", nullhyp = "qapy",
                 reps = 20, seed = 1, ncores = 1)
   expect_s3_class(fit, "QAPGLM")
@@ -64,9 +64,9 @@ test_that("QAPglm runs with binomial family", {
 })
 
 # ---- robust errors ----
-test_that("QAPglm works with robust errors", {
+test_that("QAP works with robust errors", {
   d <- make_test_data()
-  fit <- QAPglm(y ~ x1, data = d,
+  fit <- QAP(y ~ x1, data = d,
                 family = "gaussian", nullhyp = "qapy",
                 reps = 20, seed = 1, use_robust_errors = TRUE)
   expect_s3_class(fit, "QAPRegression")
@@ -74,9 +74,9 @@ test_that("QAPglm works with robust errors", {
 })
 
 # ---- random intercepts ----
-test_that("QAPglm works with random intercept for sender", {
+test_that("QAP works with random intercept for sender", {
   d <- make_test_data()
-  fit <- QAPglm(y ~ x1, data = d,
+  fit <- QAP(y ~ x1, data = d,
                 family = "gaussian", nullhyp = "qapy",
                 reps = 20, seed = 1,
                 random_intercept_sender = TRUE)
@@ -84,7 +84,7 @@ test_that("QAPglm works with random intercept for sender", {
 })
 
 # ---- multiple networks ----
-test_that("QAPglm works with list of matrices", {
+test_that("QAP works with list of matrices", {
   n <- 8
   set.seed(42)
   y1 <- matrix(rnorm(n^2), n, n);  diag(y1) <- NA
@@ -93,7 +93,7 @@ test_that("QAPglm works with list of matrices", {
   x1_2 <- matrix(rnorm(n^2), n, n); diag(x1_2) <- NA
   d <- list(y = list(y1, y2), x1 = list(x1_1, x1_2))
 
-  fit <- QAPglm(y ~ x1, data = d,
+  fit <- QAP(y ~ x1, data = d,
                 family = "gaussian", nullhyp = "qapy",
                 reps = 20, seed = 1)
   expect_s3_class(fit, "QAPRegression")
@@ -102,19 +102,19 @@ test_that("QAPglm works with list of matrices", {
 # ---- print methods ----
 test_that("print.QAPRegression works", {
   d <- make_test_data()
-  fit <- QAPglm(y ~ x1, data = d, reps = 20, seed = 1)
+  fit <- QAP(y ~ x1, data = d, reps = 20, seed = 1)
   expect_output(print(fit), "OLS Network Model")
 })
 
 test_that("print.QAPGLM works", {
   d <- make_test_data_binary()
-  fit <- QAPglm(y ~ x1, data = d, family = "binomial",
+  fit <- QAP(y ~ x1, data = d, family = "binomial",
                 reps = 20, seed = 1)
   expect_output(print(fit), "Generalized Linear Network Model")
 })
 
 # ---- comparison argument ----
-test_that("QAPglm works with comparisons", {
+test_that("QAP works with comparisons", {
   n <- 10
   set.seed(42)
   # Create a categorical outcome
@@ -124,7 +124,7 @@ test_that("QAPglm works with comparisons", {
   d <- list(y = y, x1 = x1)
 
   comp <- list(commission = c("FP", "TN"))
-  fit <- QAPglm(y ~ x1, data = d, family = "gaussian",
+  fit <- QAP(y ~ x1, data = d, family = "gaussian",
                 comparison = comp, nullhyp = "qapy",
                 reps = 20, seed = 1)
   expect_s3_class(fit, "QAPGLM")
@@ -172,10 +172,10 @@ make_test_data_zip <- function(n = 10, seed = 42) {
 }
 
 # ---- negative binomial ----
-test_that("QAPglm runs with negbin family (standard)", {
+test_that("QAP runs with negbin family (standard)", {
   skip_if_not_installed("MASS")
   d <- make_test_data_negbin()
-  fit <- QAPglm(y ~ x1 + x2, data = d,
+  fit <- QAP(y ~ x1 + x2, data = d,
                 family = "negbin", nullhyp = "qapy",
                 reps = 20, seed = 1, ncores = 1)
   expect_s3_class(fit, "QAPGLM")
@@ -184,12 +184,12 @@ test_that("QAPglm runs with negbin family (standard)", {
   expect_length(fit$coefficients, 3)
 })
 
-test_that("QAPglm runs with negbin family (GMM)", {
+test_that("QAP runs with negbin family (GMM)", {
   skip_if_not_installed("gmm")
   d <- make_test_data_negbin(n = 15, seed = 99)
   # Some permutations may fail numerically; expect warnings
   fit <- suppressWarnings(
-    QAPglm(y ~ x1 + x2, data = d,
+    QAP(y ~ x1 + x2, data = d,
            family = "negbin", estimator = "gmm",
            nullhyp = "qapy",
            reps = 20, seed = 1, ncores = 1)
@@ -201,16 +201,16 @@ test_that("QAPglm runs with negbin family (GMM)", {
 test_that("print.QAPGLM shows dispersion for negbin", {
   skip_if_not_installed("MASS")
   d <- make_test_data_negbin()
-  fit <- QAPglm(y ~ x1, data = d, family = "negbin",
+  fit <- QAP(y ~ x1, data = d, family = "negbin",
                 reps = 20, seed = 1)
   expect_output(print(fit), "theta")
 })
 
 # ---- zero-inflated Poisson ----
-test_that("QAPglm runs with zip family (standard)", {
+test_that("QAP runs with zip family (standard)", {
   skip_if_not_installed("pscl")
   d <- make_test_data_zip()
-  fit <- QAPglm(y ~ x1 + x2, data = d,
+  fit <- QAP(y ~ x1 + x2, data = d,
                 family = "zip", nullhyp = "qapy",
                 reps = 20, seed = 1, ncores = 1)
   expect_s3_class(fit, "QAPGLM")
@@ -218,11 +218,11 @@ test_that("QAPglm runs with zip family (standard)", {
   expect_true(!is.null(fit$coefficients))
 })
 
-test_that("QAPglm runs with zip family (GMM)", {
+test_that("QAP runs with zip family (GMM)", {
   skip_if_not_installed("gmm")
   d <- make_test_data_zip(n = 15, seed = 99)
   fit <- suppressWarnings(
-    QAPglm(y ~ x1 + x2, data = d,
+    QAP(y ~ x1 + x2, data = d,
            family = "zip", estimator = "gmm",
            nullhyp = "qapy",
            reps = 20, seed = 1, ncores = 1)
@@ -234,16 +234,16 @@ test_that("QAPglm runs with zip family (GMM)", {
 test_that("print.QAPGLM shows zero-inflation for zip", {
   skip_if_not_installed("pscl")
   d <- make_test_data_zip()
-  fit <- QAPglm(y ~ x1, data = d, family = "zip",
+  fit <- QAP(y ~ x1, data = d, family = "zip",
                 reps = 20, seed = 1)
   expect_output(print(fit), "Zero-inflation")
 })
 
 # ---- negbin with random intercepts (requires glmmTMB) ----
-test_that("QAPglm runs with negbin + random intercepts", {
+test_that("QAP runs with negbin + random intercepts", {
   skip_if_not_installed("glmmTMB")
   d <- make_test_data_negbin()
-  fit <- QAPglm(y ~ x1, data = d,
+  fit <- QAP(y ~ x1, data = d,
                 family = "negbin", nullhyp = "qapy",
                 reps = 20, seed = 1,
                 random_intercept_sender = TRUE)
@@ -252,10 +252,10 @@ test_that("QAPglm runs with negbin + random intercepts", {
 })
 
 # ---- zip with random intercepts (requires glmmTMB) ----
-test_that("QAPglm runs with zip + random intercepts", {
+test_that("QAP runs with zip + random intercepts", {
   skip_if_not_installed("glmmTMB")
   d <- make_test_data_zip()
-  fit <- QAPglm(y ~ x1, data = d,
+  fit <- QAP(y ~ x1, data = d,
                 family = "zip", nullhyp = "qapy",
                 reps = 20, seed = 1,
                 random_intercept_sender = TRUE)

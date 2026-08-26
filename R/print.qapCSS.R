@@ -1,4 +1,4 @@
-#' Print QAPcss() results
+#' Print QAP() results
 #'
 #' @param x An object of class \code{QAPCSS}.
 #' @param ... Additional arguments (ignored).

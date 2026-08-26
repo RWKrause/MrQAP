@@ -2,24 +2,29 @@
 % Please edit documentation in R/make_css_data.R
 \name{make_css_data}
 \alias{make_css_data}
-\title{Internal auxiliary function to shape data into internal QAPcss() format}
+\title{Internal auxiliary function to shape data into internal QAP() format}
 \usage{
-make_css_data(y, x, nets, diag, mode)
+make_css_data(y, x, nets, diag, mode, multi_mode = FALSE)
 }
 \arguments{
-\item{y}{array or list; see \code{QAPcss()}}
+\item{y}{array or list; see \code{QAP()}}
 
-\item{x}{array or list; see \code{QAPcss()}}
+\item{x}{array or list; see \code{QAP()}}
 
-\item{nets}{numeric; see \code{QAPcss()}}
+\item{nets}{numeric; see \code{QAP()}}
 
-\item{diag}{logical; see \code{QAPcss()}}
+\item{diag}{logical; see \code{QAP()}}
 
-\item{mode}{character; see \code{QAPcss()}}
+\item{mode}{character; see \code{QAP()}}
+
+\item{multi_mode}{logical; does each dimension index a distinct node set?
+If so the array may be non-cubic, and neither the diagonal nor the
+triangle applies.}
 }
 \value{
 Returns vectorized CSS data
 }
 \description{
-Internal auxiliary function to shape data into internal QAPcss() format
+Internal auxiliary function to shape data into internal QAP() format
 }
+\keyword{internal}
