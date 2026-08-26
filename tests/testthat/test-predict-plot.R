@@ -74,6 +74,55 @@ test_that("newdata predicts for a different network", {
                c(d$n, d$n))
 })
 
+test_that("cells dropped for missingness come back NA, in the right places", {
+  # The structural mask alone is not enough. If any cell was dropped for a
+  # missing value, filling the first n slots puts every value after the
+  # first gap in the wrong cell -- silently, and only for data with NAs.
+  set.seed(7); n <- 8
+  x1 <- matrix(rnorm(n^2), n, n)
+  y  <- 0.5 * x1 + matrix(rnorm(n^2), n, n)
+  y[2, 3]  <- NA        # missing outcome
+  x1[5, 6] <- NA        # missing predictor
+
+  f <- QAP(y ~ x1, data = list(y = y, x1 = x1), reps = 10, seed = 1)
+  expect_equal(nobs(f), n * (n - 1) - 2)
+
+  m <- predict(f, type = "matrix")
+  expect_equal(sum(!is.na(m)), n * (n - 1) - 2)
+  expect_true(is.na(m[2, 3]))
+  expect_true(is.na(m[5, 6]))
+  expect_true(all(is.na(diag(m))))
+
+  # Every surviving cell holds its own fitted value, in order.
+  keep <- !is.na(m)
+  expect_equal(as.vector(m)[as.vector(keep)], predict(f))
+
+  # newdata has no missingness of its own, so every structural cell fills.
+  set.seed(8)
+  nd <- predict(f, newdata = list(x1 = matrix(rnorm(n^2), n, n)),
+                type = "matrix")
+  expect_equal(sum(!is.na(nd)), n * (n - 1))
+})
+
+test_that("missingness placement holds across several networks", {
+  set.seed(11); n <- 7
+  mk <- function() matrix(rnorm(n^2), n, n)
+  x1 <- list(mk(), mk())
+  y  <- lapply(x1, function(a) 0.5 * a + matrix(rnorm(n^2), n, n))
+  y[[2]][3, 4] <- NA
+
+  f <- QAP(y ~ x1, data = list(y = y, x1 = x1), reps = 10, seed = 1)
+  m <- predict(f, type = "matrix")
+
+  expect_length(m, 2L)
+  expect_equal(sum(!is.na(m[[1]])), n * (n - 1))
+  expect_equal(sum(!is.na(m[[2]])), n * (n - 1) - 1)
+  expect_true(is.na(m[[2]][3, 4]))
+  expect_equal(unlist(lapply(m, function(z) as.vector(z)[!is.na(z)]),
+                      use.names = FALSE),
+               predict(f))
+})
+
 test_that("predict handles undirected and CSS shapes", {
   set.seed(3); n <- 10
   sym <- function() { m <- matrix(rnorm(n^2), n, n)

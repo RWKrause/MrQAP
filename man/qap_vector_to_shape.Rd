@@ -4,7 +4,7 @@
 \alias{qap_vector_to_shape}
 \title{Reshape a vector of predictions back into network shape}
 \usage{
-qap_vector_to_shape(v, dims, object)
+qap_vector_to_shape(v, dims, object, kept = NULL)
 }
 \arguments{
 \item{v}{Numeric vector, one element per modelled cell.}
@@ -12,6 +12,9 @@ qap_vector_to_shape(v, dims, object)
 \item{dims}{A dim vector, or a list of them for several networks.}
 
 \item{object}{A QAP fit, for the structural flags.}
+
+\item{kept}{Logical vector over the structurally-valid cells, marking
+those that survived into the model; \code{NULL} when none were lost.}
 }
 \value{
 A matrix/array, or a list of them.

@@ -439,6 +439,9 @@ QAP <- function(formula,
   # dropped by less_mem.
   fit$dim <- if (large) lapply(data[[dep]], dim) else dim(data[[dep]])
   fit$n_obs <- nrow(pred)
+  # One flag per structurally-valid cell: did it survive into the model?
+  # Only differs from all-TRUE when something was missing.
+  fit$kept <- if (all(built$kept)) NULL else built$kept
 
   fit$nullhyp   <- nullhyp
   fit$diag      <- diag
@@ -680,17 +683,37 @@ qap_build_pred <- function(data, dep, data_vars, groups, diag, mode,
     }
   }
 
+  # Which structurally-valid cells actually made it into the model. The
+  # structural mask alone is not enough: any NA in the outcome, a
+  # predictor, the weights or the offset drops its cell too, and
+  # predict(type = "matrix") has to put the fitted values back in the cells
+  # they came from rather than in the first n slots.
+  kept_of <- function(y, b) {
+    d    <- dim(y)
+    mask <- qap_valid_mask(d, css = css, mode = mode, diag = diag,
+                           multi_mode = multi_mode)
+    if (css) {
+      array_to_vector(b$valid, mode. = mode, diag. = diag)[mask]
+    } else {
+      full <- logical(prod(d))
+      full[b$pred$location] <- TRUE
+      full[mask]
+    }
+  }
+
   if (!large) {
     xs <- data[data_vars]
     b  <- one(data[[dep]], xs, groups, 1)
     pred <- b$pred
     names(pred)[names(pred) == "yv"] <- dep
-    return(list(pred = pred, valid = b$valid, valid_list = NULL))
+    return(list(pred = pred, valid = b$valid, valid_list = NULL,
+                kept = kept_of(data[[dep]], b)))
   }
 
   nets       <- seq_along(data[[dep]])
   pred_list  <- vector("list", length(nets))
   valid_list <- vector("list", length(nets))
+  kept_list  <- vector("list", length(nets))
   for (net in nets) {
     xs <- lapply(data_vars, function(v) data[[v]][[net]])
     names(xs) <- data_vars
@@ -698,10 +721,12 @@ qap_build_pred <- function(data, dep, data_vars, groups, diag, mode,
     b  <- one(data[[dep]][[net]], xs, g, net)
     pred_list[[net]]  <- b$pred
     valid_list[[net]] <- b$valid
+    kept_list[[net]]  <- kept_of(data[[dep]][[net]], b)
   }
   pred <- do.call(rbind, pred_list)
   names(pred)[names(pred) == "yv"] <- dep
-  list(pred = pred, valid = NULL, valid_list = valid_list)
+  list(pred = pred, valid = NULL, valid_list = valid_list,
+       kept = unlist(kept_list, use.names = FALSE))
 }
 
 

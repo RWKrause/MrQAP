@@ -74,8 +74,11 @@ predict.QAP <- function(object, newdata = NULL,
   # Put the vector back where it came from. The mask is rebuilt from the
   # shape recorded at fit time, so this needs neither the original data nor
   # the model frame.
+  # For newdata, every structurally-valid cell yields a prediction, so the
+  # fit's own missingness pattern does not apply.
   dims <- if (is.null(newdata)) object$dim else qap_newdata_dim(newdata)
-  qap_vector_to_shape(pv, dims, object)
+  kept <- if (is.null(newdata)) object$kept else NULL
+  qap_vector_to_shape(pv, dims, object, kept = kept)
 }
 
 
@@ -138,33 +141,50 @@ qap_newdata_dim <- function(newdata) {
 #' @param v Numeric vector, one element per modelled cell.
 #' @param dims A dim vector, or a list of them for several networks.
 #' @param object A QAP fit, for the structural flags.
+#' @param kept Logical vector over the structurally-valid cells, marking
+#'   those that survived into the model; \code{NULL} when none were lost.
 #'
 #' @return A matrix/array, or a list of them.
 #' @keywords internal
 
-qap_vector_to_shape <- function(v, dims, object) {
+qap_vector_to_shape <- function(v, dims, object, kept = NULL) {
   mask_of <- function(d)
     qap_valid_mask(d, css = isTRUE(object$css), mode = object$mode,
                    diag = isTRUE(object$diag),
                    multi_mode = isTRUE(object$multi_mode))
 
-  fill <- function(d, vals) {
-    keep <- mask_of(d)
-    out  <- rep(NA_real_, length(keep))
-    # Cells excluded for missingness leave fewer values than the structural
-    # mask has slots; fill what there is and leave the rest NA.
-    n <- min(sum(keep), length(vals))
-    out[which(keep)[seq_len(n)]] <- vals[seq_len(n)]
+  # `kept` marks which structurally-valid cells actually entered the model.
+  # Without it, data with any missingness would be written into the first
+  # n slots of the mask -- putting every value after the first dropped cell
+  # in the wrong place, silently.
+  fill <- function(d, vals, keep_d) {
+    slots <- mask_of(d)
+    idx   <- which(slots)
+    if (!is.null(keep_d)) idx <- idx[keep_d]
+
+    out <- rep(NA_real_, length(slots))
+    n   <- min(length(idx), length(vals))
+    out[idx[seq_len(n)]] <- vals[seq_len(n)]
     array(out, dim = d)
   }
 
-  if (!is.list(dims)) return(fill(dims, v))
+  if (!is.list(dims)) return(fill(dims, v, kept))
 
-  # Several networks: the vector is their modelled cells concatenated.
-  ns     <- vapply(dims, function(d) sum(mask_of(d)), integer(1))
+  # Several networks: the vector is their modelled cells concatenated, so
+  # the split points come from how many each network contributed.
+  slot_n <- vapply(dims, function(d) sum(mask_of(d)), integer(1))
+  keep_by_net <- if (is.null(kept)) {
+    vector("list", length(dims))
+  } else {
+    split(kept, rep(seq_along(dims), slot_n))
+  }
+  ns <- if (is.null(kept)) slot_n else
+    vapply(keep_by_net, sum, integer(1))
+
   ends   <- cumsum(ns)
   starts <- c(1L, utils::head(ends, -1L) + 1L)
-  lapply(seq_along(dims), function(i) fill(dims[[i]], v[starts[i]:ends[i]]))
+  lapply(seq_along(dims), function(i)
+    fill(dims[[i]], v[starts[i]:ends[i]], keep_by_net[[i]]))
 }
 
 
