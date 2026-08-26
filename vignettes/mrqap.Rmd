@@ -122,6 +122,36 @@ rbind(permutation = confint(fit)["x1", ],
 `nobs()` all describe the *baseline* fit, and carry the same caveat: they
 know nothing about the permutation inference.
 
+### Seeing the null distribution
+
+A p-value is a summary of a distribution, and it is worth looking at the
+distribution itself. `plot()` draws the permutation draws for each tested
+coefficient with the observed statistic marked in red:
+
+```{r plot, fig.width = 7, fig.height = 3.2}
+op <- par(mfrow = c(1, 2), mar = c(4, 4, 2, 1))
+plot(fit)
+par(op)
+```
+
+An effect whose observed statistic sits well outside the histogram is the
+picture a small p-value is describing; one sitting inside it is not.
+
+### Predicting
+
+`predict()` gives fitted values on the response scale, and
+`type = "matrix"` puts them back into the shape of the network, with `NA`
+wherever a cell did not enter the model:
+
+```{r predict}
+p_hat <- predict(fit, type = "matrix")
+dim(p_hat)
+round(p_hat[1:4, 1:4], 2)          # the diagonal is NA, as it was dropped
+```
+
+Pass `newdata` — a named list of matrices shaped like the fitted data — to
+predict for a different network.
+
 ## Choosing the null hypothesis
 
 Two procedures are available.
@@ -180,6 +210,29 @@ round(rbind(model_based = fit$t, robust = rfit$t), 2)
 They are not available for mixed models, where `QAP()` warns and falls back
 to model-based errors rather than reporting a number that is not what it
 claims to be.
+
+## Weights and offsets
+
+`weights` scales each dyad's contribution to the fit; `offset` enters the
+linear predictor with its coefficient fixed at one, which is how exposure
+enters a count model. Each is a matrix shaped exactly like the dependent
+variable:
+
+```{r weights, eval = FALSE}
+QAP(ties ~ x1, data = d, family = "poisson",
+    offset = log(opportunities))     # rate per opportunity
+```
+
+Both work for every family and for both estimators, including GMM, where
+they enter the moment conditions directly.
+
+It matters what these do under permutation. A weight and an offset belong
+to the *cell* — this sender, this receiver — not to the actors. They
+therefore stay in place while the outcome (or, under `qapspp`, the tested
+predictor) is relabelled: they are part of the fixed design against which
+the null distribution is generated, not quantities that travel with the
+permutation. If your weights are a property of the actors rather than of
+the dyad, that is a different model and this is not it.
 
 ## Restricting permutations to groups
 
@@ -301,6 +354,17 @@ QAP(weight ~ shared, data = mats, reps = 50)$coefficients
 It also handles a perceiver column (producing CSS arrays), `multi_mode` for
 two-mode data, and `split_by` for several networks at once.
 
+You can skip the conversion and hand the data frame straight to `QAP()`,
+naming the dimension columns:
+
+```{r df-direct, eval = FALSE}
+QAP(y ~ x1, data = edges, sender = "from", receiver = "to", reps = 200)
+```
+
+`igraph` and `network` objects are accepted in the data list too, and are
+converted to adjacency matrices; `edge_attr` names an edge attribute to
+read as the value, rather than taking the binary adjacency.
+
 ## Longer runs
 
 A p-value estimated from 200 permutations is granular to 1/200. Published
@@ -316,6 +380,20 @@ QAP(y ~ x1 + x2, data = d, reps = 5000, ncores = 4)
 If you leave `ncores` unset, whatever `future` plan you have configured is
 used unchanged, so you can manage parallelism yourself.
 
+A long run can report progress. `QAP()` emits progress but does not decide
+whether it is shown — wrap the call to switch it on:
+
+```{r progress, eval = FALSE}
+progressr::with_progress(
+  QAP(y ~ x1 + x2, data = d, reps = 5000)
+)
+```
+
+If memory is the constraint rather than time, `less_mem = TRUE` drops the
+fitted model and the permutation draws, which is most of the object.
+`coef()`, `nobs()` and `summary()` still work; `predict()`, `plot()` and
+`confint()` do not.
+
 And separate runs can be pooled afterwards, which is useful when a long job
 has to be split:
 
@@ -327,8 +405,15 @@ ab <- combine_qap_estimates(a, b)
 ab$reps
 ```
 
-Pooling is weighted by `reps`, so the runs need not be the same length. For
-models fitted with `comparison=`, each comparison is pooled separately.
+Pooling is weighted by the permutations that actually contributed, so the
+runs need not be the same length, and a run that lost permutations to
+non-convergence is not over-weighted. The permutation draws are pooled too,
+so `confint()` on the result uses all of them. For models fitted with
+`comparison=`, each comparison is pooled separately.
+
+Only repeated runs of the *same* model on the *same* data can be pooled,
+and that is checked: the settings must match, and so must the coefficients,
+which differ if and only if the data did.
 
 ## Notes on speed
 
@@ -339,9 +424,18 @@ formula interface every time. It is roughly twelve times faster on network
 matrices and fourteen on CSS arrays, and produces identical numbers — the
 test suite checks the two paths against each other at a tolerance of 1e-12.
 
+Under `qapspp` there is a further saving. Only one column of the design
+changes per permutation, and only that column's coefficient and t-value are
+ever compared with the baseline, so the fit is obtained by
+Frisch–Waugh–Lovell from a decomposition of the columns that do *not*
+change — formed once per predictor — instead of re-solving the whole design
+each time. That is exact algebra rather than an approximation, and it puts
+semi-partialling at roughly the same cost per permutation as outcome
+permutation.
+
 Anything the fast path cannot handle — a GLM, random effects, absorbed
-fixed effects, comparisons, or missing data — automatically uses the general
-engine.
+fixed effects, comparisons, weights, an offset, or missing data —
+automatically uses the general engine.
 
 `use_gpu = TRUE` additionally offloads batched linear models to a GPU via
 `torch`, if one is available:
@@ -350,6 +444,13 @@ engine.
 gpu_available()
 QAP(y ~ x1 + x2, data = d, reps = 10000, use_gpu = TRUE)
 ```
+
+The GPU is worth it only on reasonably large networks: below a few thousand
+dyads the transfer overhead exceeds the work, and on a CPU-only `torch`
+install it is slower than the plain fast path throughout. Each run
+re-checks its first batch against the CPU solver and stops if the two
+disagree, so a broken driver or `torch` upgrade fails loudly rather than
+moving p-values quietly.
 
 ## References
 

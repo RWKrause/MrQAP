@@ -124,7 +124,12 @@ comparison models).}
 standard errors.  HC3 for linear models, the GLM sandwich otherwise.
 Not available for mixed models.}
 
-\item{less_mem}{Logical; do not store the fitted model object.}
+\item{less_mem}{Logical; do not retain the fitted model object or the
+permutation draws.  Roughly halves the size of the result on a large
+network, at the cost of \code{fitted()}, \code{residuals()},
+\code{logLik()}, \code{vcov()}, \code{predict()}, \code{plot()} and
+\code{confint()}, which need one or the other.  \code{coef()},
+\code{nobs()} and \code{summary()} still work.}
 
 \item{use_gpu}{Logical; use GPU-accelerated batch OLS (gaussian only,
 requires the \code{torch} package).}

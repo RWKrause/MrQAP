@@ -243,6 +243,35 @@ test_that("extractors needing the model object fail clearly under less_mem", {
   expect_false(is.na(nobs(f)))
   # coef still works: it does not need the model object
   expect_named(coef(f), c("(Intercept)", "x1", "x2"))
+  # summary() too: it reads coefficients and the p-value matrices.
+  expect_equal(nrow(summary(f)$coefficients), 3L)
+})
+
+test_that("less_mem actually drops the model object", {
+  # It used to skip only the top-level copy while the same object survived
+  # in fit$base$base_model, so the fit was no smaller (4.68 of 4.69 MB at
+  # n = 120) even as the extractors refused to run.
+  f <- QAP(y ~ x1 + x2, data = md(), reps = 20, seed = 1, less_mem = TRUE)
+  expect_null(f$simple_fit)
+  expect_null(f$base$base_model)
+  expect_null(f$null_dist)
+
+  full <- QAP(y ~ x1 + x2, data = md(), reps = 20, seed = 1)
+  expect_lt(as.numeric(object.size(f)),
+            as.numeric(object.size(full)) / 2)
+  # And it is the same model: only the storage differs.
+  expect_equal(coef(f), coef(full))
+  expect_equal(f$abs, full$abs)
+})
+
+test_that("less_mem drops the model for comparison fits too", {
+  f <- QAP(y ~ x1 + x2, data = cat_data(), family = "binomial",
+           comparison = list(commission = c("FP", "TN")),
+           reps = 10, seed = 1, less_mem = TRUE)
+  expect_null(f$simple_fits)
+  expect_true(all(vapply(f$base, function(b) is.null(b$base_model),
+                         logical(1))))
+  expect_named(coef(f), "commission")
 })
 
 test_that("vcov returns the model-based covariance", {

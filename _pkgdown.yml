@@ -1,0 +1,52 @@
+url: https://rwkrause.github.io/MrQAP/
+
+template:
+  bootstrap: 5
+
+reference:
+  - title: Fitting a model
+    desc: >
+      The single entry point. Network matrices, CSS arrays and multi-mode
+      data are all detected from the shape of the dependent variable.
+    contents:
+      - QAP
+
+  - title: Preparing data
+    desc: >
+      Getting from what you have -- a dyadic data frame, a set of graph
+      objects -- to the matrices QAP() expects.
+    contents:
+      - df_to_mat
+
+  - title: Working with a fit
+    desc: >
+      The standard extractors, all defined on the shared QAP parent class,
+      so they behave the same whatever the input shape was.
+    contents:
+      - summary.QAP
+      - coef.QAP
+      - confint.QAP
+      - predict.QAP
+      - plot.QAP
+      - vcov.QAP
+      - nobs.QAP
+      - fitted.QAP
+      - logLik.QAP
+      - as.data.frame.QAP
+      - starts_with("print.")
+
+  - title: Pooling and diagnostics
+    contents:
+      - combine_qap_estimates
+      - probabilistic_confusion_matrix
+
+  - title: Permutation and hardware
+    contents:
+      - RMPerm
+      - gpu_available
+
+articles:
+  - title: Getting started
+    navbar: ~
+    contents:
+      - mrqap

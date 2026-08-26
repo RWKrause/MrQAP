@@ -86,7 +86,12 @@
 #' @param use_robust_errors Logical; use heteroskedasticity-consistent
 #'   standard errors.  HC3 for linear models, the GLM sandwich otherwise.
 #'   Not available for mixed models.
-#' @param less_mem Logical; do not store the fitted model object.
+#' @param less_mem Logical; do not retain the fitted model object or the
+#'   permutation draws.  Roughly halves the size of the result on a large
+#'   network, at the cost of \code{fitted()}, \code{residuals()},
+#'   \code{logLik()}, \code{vcov()}, \code{predict()}, \code{plot()} and
+#'   \code{confint()}, which need one or the other.  \code{coef()},
+#'   \code{nobs()} and \code{summary()} still work.
 #' @param use_gpu Logical; use GPU-accelerated batch OLS (gaussian only,
 #'   requires the \code{torch} package).
 #'
@@ -396,6 +401,20 @@ QAP <- function(formula,
     if (!less_mem) fit$simple_fit <- fit$base$base_model
   } else if (!less_mem) {
     fit$simple_fits <- lapply(fit$base, `[[`, "base_model")
+  }
+
+  # less_mem promised not to store the fitted model, but only ever skipped
+  # the top-level copy: the same object survived in fit$base$base_model, so
+  # the fit was no smaller (4.68 of 4.69 MB at n = 120) while the
+  # extractors refused to run and told the user to refit without it. Drop
+  # it for real. Everything downstream of here reads coefficients and t,
+  # which stay.
+  if (less_mem) {
+    if (is.null(comparison)) {
+      fit$base$base_model <- NULL
+    } else {
+      fit$base <- lapply(fit$base, function(f) { f$base_model <- NULL; f })
+    }
   }
 
   if (family == "binomial" && is.null(comparison)) {
