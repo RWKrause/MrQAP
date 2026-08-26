@@ -312,6 +312,11 @@ QAP <- function(formula,
   fit$lower  <- agg$lower
   fit$larger <- agg$larger
   fit$abs    <- agg$abs
+  # How many permutations actually contributed -- the divisor of the three
+  # proportions above. A scalar under qapy; one entry per predictor under
+  # qapspp, which tests each in its own set of permutations. Used by
+  # combine_qap_estimates() to pool by weight rather than by intent.
+  fit$n_valid <- agg$n_valid
   # The permutation draws themselves, used by confint(). Cheap to keep
   # (reps x k doubles) but suppressed by less_mem like the model object.
   if (!less_mem) fit$null_dist <- agg$draws

@@ -191,8 +191,9 @@ qap_ols_perms <- function(tmpl, data, dep, main, groups, reps, base_fit,
     }
 
     # --- qapspp: one column of X is replaced each rep ---
-    out <- qap_init_pmats(base_fit, NULL)
-    per_xi <- list()
+    out     <- qap_init_pmats(base_fit, NULL)
+    per_xi  <- list()
+    n_valid <- c()
 
     for (xi in main) {
       d <- qap_residualise(xi, data, pred, main, has_random, rand_part,
@@ -215,12 +216,14 @@ qap_ols_perms <- function(tmpl, data, dep, main, groups, reps, base_fit,
         p = p
       )
       agg <- aggregate_perm_results(res, reps)
+      n_valid[xi] <- agg$n_valid
       out$lower[,  xi] <- agg$lower
       out$larger[, xi] <- agg$larger
       out$abs[,    xi] <- agg$abs
       per_xi[[xi]] <- agg$draws
     }
-    out$draws <- qap_draws_by_predictor(per_xi, colnames(out$abs), reps)
+    out$draws   <- qap_draws_by_predictor(per_xi, colnames(out$abs), reps)
+    out$n_valid <- n_valid
     out
   }
 

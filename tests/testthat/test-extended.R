@@ -160,13 +160,21 @@ test_that("QAPglm works with robust errors for poisson", {
 # QAP()/QAP() store comparison results as fit$lower[[comparison]] --
 # a list of K matrices, one per comparison -- NOT as fit[[comparison]]$lower.
 # The fixtures below mirror the real layout.
+# Stub fits for the pooling arithmetic. These must carry the same fields a
+# real fit does -- including the shared "QAP" parent class, the settings
+# combine_qap_estimates() checks, and n_valid -- or they stop testing the
+# code path QAP() actually produces. See the drift guard below.
 make_comp_fit <- function(lo, la, ab, reps, comps = c("commission", "omission")) {
   mk <- function(v) setNames(lapply(comps, function(i) matrix(v, 2, 3)), comps)
   structure(list(lower = mk(lo), larger = mk(la), abs = mk(ab),
-                 reps = reps, nullhyp = "qapy",
+                 reps = reps, n_valid = reps, nullhyp = "qapy",
+                 family = "binomial", estimator = "standard",
+                 mode = "directed", diag = FALSE, css = FALSE,
+                 multi_mode = FALSE, robust_se = FALSE, reference = NULL,
+                 coefficients = c("(Intercept)" = 0.1, x1 = 0.2, x2 = 0.3),
                  comp = setNames(lapply(comps, function(i) c("FP", "TN")),
                                  comps)),
-            class = "QAPGLM")
+            class = c("QAPGLM", "QAP"))
 }
 
 test_that("combine_qap_estimates pools reps within each comparison", {
@@ -224,14 +232,23 @@ test_that("combine_qap_estimates matches the layout QAPglm produces", {
   expect_named(fit$lower, "commission")
   expect_true(is.matrix(fit$lower[["commission"]]))
   expect_null(fit$commission)
+  # The stubs above must carry the same class and the same fields that
+  # combine_qap_estimates() reads, or they test nothing real.
+  expect_true(inherits(fit, "QAP"))
+  for (f in c("reps", "n_valid", "nullhyp", "family", "estimator", "mode",
+              "diag", "css", "multi_mode", "robust_se"))
+    expect_false(is.null(fit[[f]]), info = f)
 })
 
 test_that("combine_qap_estimates works with res + res2 syntax", {
-  r1 <- list(lower = matrix(0.1, 2, 2), larger = matrix(0.9, 2, 2),
-             abs = matrix(0.2, 2, 2), reps = 50, comp = NULL)
-  r2 <- list(lower = matrix(0.3, 2, 2), larger = matrix(0.7, 2, 2),
-             abs = matrix(0.4, 2, 2), reps = 50, comp = NULL)
-  class(r1) <- class(r2) <- "QAPRegression"
-  combined <- combine_qap_estimates(r1, r2)
+  mk <- function(v1, v2, v3) structure(
+    list(lower = matrix(v1, 2, 2), larger = matrix(v2, 2, 2),
+         abs = matrix(v3, 2, 2), reps = 50, n_valid = 50,
+         nullhyp = "qapy", family = "gaussian", estimator = "standard",
+         mode = "directed", diag = FALSE, css = FALSE, multi_mode = FALSE,
+         robust_se = FALSE, reference = NULL,
+         coefficients = c("(Intercept)" = 1, x1 = 2), comp = NULL),
+    class = c("QAPRegression", "QAP"))
+  combined <- combine_qap_estimates(mk(0.1, 0.9, 0.2), mk(0.3, 0.7, 0.4))
   expect_equal(combined$reps, 100)
 })

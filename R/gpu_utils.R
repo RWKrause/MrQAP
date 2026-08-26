@@ -148,7 +148,8 @@ gpu_batch_ols <- function(tmpl, data, dep, main, groups, reps, baseline_fit,
   keep <- seq_len(n_used)
   list(lower = mk(lower_sum), larger = mk(larger_sum), abs = mk(abs_sum),
        draws = list(b = draw_b[keep, , drop = FALSE],
-                    t = draw_t[keep, , drop = FALSE]))
+                    t = draw_t[keep, , drop = FALSE]),
+       n_valid = n_used)
 }
 
 

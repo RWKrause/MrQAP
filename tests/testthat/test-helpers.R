@@ -60,11 +60,17 @@ test_that("df_to_mat handles undirected mode", {
 
 # ---- combine_qap_estimates ----
 test_that("combine_qap_estimates works with two runs", {
-  r1 <- list(lower = matrix(0.1, 2, 3), larger = matrix(0.9, 2, 3),
-             abs = matrix(0.2, 2, 3), reps = 100, comp = NULL)
-  r2 <- list(lower = matrix(0.3, 2, 3), larger = matrix(0.7, 2, 3),
-             abs = matrix(0.4, 2, 3), reps = 100, comp = NULL)
-  class(r1) <- class(r2) <- "QAPregression"
+  # The class must match what QAP() sets -- "QAPRegression" plus the shared
+  # "QAP" parent -- not the lowercase spelling no real fit ever carries.
+  mk <- function(v1, v2, v3) structure(
+    list(lower = matrix(v1, 2, 3), larger = matrix(v2, 2, 3),
+         abs = matrix(v3, 2, 3), reps = 100, n_valid = 100,
+         nullhyp = "qapy", family = "gaussian", estimator = "standard",
+         mode = "directed", diag = FALSE, css = FALSE, multi_mode = FALSE,
+         robust_se = FALSE, reference = NULL,
+         coefficients = c("(Intercept)" = 1, x1 = 2, x2 = 3), comp = NULL),
+    class = c("QAPRegression", "QAP"))
+  r1 <- mk(0.1, 0.9, 0.2); r2 <- mk(0.3, 0.7, 0.4)
   combined <- combine_qap_estimates(list(r1, r2))
   expect_equal(combined$reps, 200)
   expect_equal(combined$lower[1, 1], 0.2, tolerance = 0.001)

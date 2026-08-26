@@ -89,6 +89,7 @@ qap_aggregate <- function(res, reps, comparison) {
     lapply(cns, function(cn)
       qap_stack_draws(resL[names(resL) == paste0(cn, ".draw")])),
     cns)
+  out$n_valid <- n_valid
   out
 }
 
@@ -212,7 +213,8 @@ qap_cpu_perms <- function(data, parsed, mode, diag, groups, reps, base_fit,
 
     # --- qapspp: one set of permutations per predictor ---
     out <- qap_init_pmats(base_fit, comparison)
-    per_xi <- list()
+    per_xi  <- list()
+    n_valid <- c()
 
     for (xi in main) {
       d <- qap_residualise(xi, data, pred, main, has_random, rand_part,
@@ -223,6 +225,9 @@ qap_cpu_perms <- function(data, parsed, mode, diag, groups, reps, base_fit,
                      c(list(reps, QAPPermEst), perm_args(d, xi),
                        list(p = p)))
       agg <- qap_aggregate(res, reps, comparison)
+      # Each predictor is tested in its own set of permutations and can
+      # lose a different number of them, so the divisor is per-predictor.
+      n_valid[xi] <- agg$n_valid
 
       if (is.null(comparison)) {
         out$lower[,  xi] <- agg$lower
@@ -247,6 +252,7 @@ qap_cpu_perms <- function(data, parsed, mode, diag, groups, reps, base_fit,
           lapply(per_xi, `[[`, cn), colnames(out$abs[[cn]]), reps)),
         names(comparison))
     }
+    out$n_valid <- n_valid
     out
   }
 
@@ -282,13 +288,15 @@ qap_gpu_perms <- function(tmpl, data, dep, main, groups, reps, base_fit,
 
   if (nullhyp == "qapy") return(batch(data, NULL))
 
-  out    <- qap_init_pmats(base_fit, NULL)
-  per_xi <- list()
+  out     <- qap_init_pmats(base_fit, NULL)
+  per_xi  <- list()
+  n_valid <- c()
   for (xi in main) {
     d <- qap_residualise(xi, data, pred, main, has_random, rand_part,
                          valid, valid_list, large, css, mode)
     if (is.null(d)) next
     g <- batch(d, xi)
+    n_valid[xi] <- g$n_valid
     out$lower[,  xi] <- g$lower[,  xi]
     out$larger[, xi] <- g$larger[, xi]
     out$abs[,    xi] <- g$abs[,    xi]
@@ -296,6 +304,7 @@ qap_gpu_perms <- function(tmpl, data, dep, main, groups, reps, base_fit,
     per_xi[[xi]] <- list(b = g$draws$b[, xi, drop = FALSE],
                          t = g$draws$t[, xi, drop = FALSE])
   }
-  out$draws <- qap_draws_by_predictor(per_xi, colnames(out$abs), reps)
+  out$draws   <- qap_draws_by_predictor(per_xi, colnames(out$abs), reps)
+  out$n_valid <- n_valid
   out
 }

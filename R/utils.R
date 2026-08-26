@@ -616,17 +616,33 @@ aggregate_perm_results <- function(results, reps) {
     warning(reps - n_valid, " of ", reps,
             " permutations failed and were excluded.")
   }
-  resL <- unlist(results, recursive = FALSE)
-  draws <- resL[names(resL) == "draw"]
+  # One pass, three running sums. Flattening the whole list and running a
+  # Reduce() per statistic built a 4 * n_valid element list and compared its
+  # names three times over, which at a few thousand permutations of a cheap
+  # model cost more than the arithmetic it was organising.
+  acc_l <- results[[1L]]$lower
+  acc_g <- results[[1L]]$larger
+  acc_a <- results[[1L]]$abs
+  for (i in seq_len(n_valid)[-1L]) {
+    r     <- results[[i]]
+    acc_l <- acc_l + r$lower
+    acc_g <- acc_g + r$larger
+    acc_a <- acc_a + r$abs
+  }
 
   list(
-    lower  = Reduce("+", resL[names(resL) == "lower"],  0) / n_valid,
-    larger = Reduce("+", resL[names(resL) == "larger"], 0) / n_valid,
-    abs    = Reduce("+", resL[names(resL) == "abs"],    0) / n_valid,
+    lower  = acc_l / n_valid,
+    larger = acc_g / n_valid,
+    abs    = acc_a / n_valid,
     # One row per successful permutation. For a whole-model permutation each
     # element is a 2 x k matrix (b and t); when a single predictor is being
     # tested it is a length-2 vector.
-    draws  = qap_stack_draws(draws)
+    draws  = qap_stack_draws(lapply(results, `[[`, "draw")),
+    # How many permutations actually contributed. Divisor of the three
+    # proportions above, and the correct pooling weight for
+    # combine_qap_estimates(), which would otherwise weight by the number
+    # REQUESTED and quietly over-weight a run that lost permutations.
+    n_valid = n_valid
   )
 }
 
@@ -741,6 +757,61 @@ validate_qap_input <- function(data, parsed, css = FALSE) {
     }
   }
 
+  # Matching dimensions are not matching node sets. Two matrices built from
+  # separate sources can easily disagree on the order of the actors, which
+  # produces a silently meaningless model rather than an error. Where both
+  # sides label a dimension, the labels must agree.
+  for (v in preds) {
+    if (large) {
+      for (i in seq_along(y))
+        check_dimnames(data[[v]][[i]], y[[i]], v, dep, i)
+    } else {
+      check_dimnames(data[[v]], y, v, dep, NULL)
+    }
+  }
+
+  invisible(TRUE)
+}
+
+
+#' Compare the dimnames of a predictor against the dependent variable
+#'
+#' Only compares a dimension when \emph{both} sides label it: dimnames are
+#' optional throughout the package, and requiring them would reject data
+#' that works perfectly well.
+#'
+#' @param x,y The predictor and the dependent variable.
+#' @param vx,vy Their names, for the message.
+#' @param net Integer network index, or NULL for a single network.
+#'
+#' @return Invisibly TRUE, or throws.
+#' @keywords internal
+
+check_dimnames <- function(x, y, vx, vy, net = NULL) {
+  dx <- dimnames(x)
+  dy <- dimnames(y)
+  if (is.null(dx) || is.null(dy)) return(invisible(TRUE))
+
+  where <- if (is.null(net)) "" else paste0("[[", net, "]]")
+  dim_label <- c("row", "column", "perceiver")
+
+  for (k in seq_along(dy)) {
+    a <- dx[[k]]
+    b <- dy[[k]]
+    if (is.null(a) || is.null(b)) next
+    if (identical(a, b)) next
+
+    same_set <- setequal(a, b)
+    stop("data[['", vx, "']]", where, " and data[['", vy, "']]", where,
+         " disagree on their ", dim_label[k], " names",
+         if (same_set) {
+           paste0(": the same nodes appear in a different order. Reorder ",
+                  "one to match the other before fitting -- as they stand, ",
+                  "the model would pair up unrelated cells.")
+         } else {
+           ". They do not describe the same set of nodes."
+         })
+  }
   invisible(TRUE)
 }
 
