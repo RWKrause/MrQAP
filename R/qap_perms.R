@@ -11,21 +11,32 @@
 #' the result matrices are filled one column at a time and start as NA.  The
 #' intercept column is never filled: it has no meaning under semi-partialling.
 #'
+#' The shape is read off the baseline coefficients, so a multinomial fit --
+#' whose coefficients are a matrix -- needs no special-casing by the caller.
+#'
 #' @param base_fit Baseline fit, or list of fits when comparisons are used.
 #' @param comparison Comparison list or NULL.
-#' @param family Character; model family.
-#' @param ncat Integer; number of outcome categories (multinomial only).
 #'
 #' @return A list with \code{lower}, \code{larger}, \code{abs}.
 #' @keywords internal
 
-qap_init_pmats <- function(base_fit, comparison, family, ncat = NULL) {
+qap_init_pmats <- function(base_fit, comparison) {
   mk <- function(f) {
-    nr <- if (family == "multinom") 2L * (ncat - 1L) else 2L
-    m  <- matrix(NA_real_, nrow = nr, ncol = length(f$coefficients))
-    colnames(m) <- names(f$coefficients)
-    # Multinomial stacks one pair of rows per non-reference category.
-    if (nr == 2L) rownames(m) <- qap_stat_rows()
+    cf <- f$coefficients
+    # A multinomial fit's coefficients are a (ncat - 1) x k MATRIX, so the
+    # column count is ncol(cf), not length(cf), and the names live in
+    # colnames(cf), not names(cf).  Using the vector accessors built a
+    # matrix (ncat - 1) times too wide with no column names, and the
+    # per-predictor assignment out$lower[, xi] then failed outright.
+    if (is.matrix(cf)) {
+      cats <- rownames(cf)
+      m <- matrix(NA_real_, nrow = 2L * length(cats), ncol = ncol(cf),
+                  dimnames = list(c(paste0("b:", cats), paste0("t:", cats)),
+                                  colnames(cf)))
+      return(m)
+    }
+    m <- matrix(NA_real_, nrow = 2L, ncol = length(cf),
+                dimnames = list(qap_stat_rows(), names(cf)))
     m
   }
 
@@ -200,10 +211,7 @@ qap_cpu_perms <- function(data, parsed, mode, diag, groups, reps, base_fit,
     }
 
     # --- qapspp: one set of permutations per predictor ---
-    ncat <- if (family == "multinom") {
-      length(na.omit(unique(as.vector(unlist(data[[dep]])))))
-    } else NULL
-    out <- qap_init_pmats(base_fit, comparison, family, ncat)
+    out <- qap_init_pmats(base_fit, comparison)
     per_xi <- list()
 
     for (xi in main) {
@@ -274,7 +282,7 @@ qap_gpu_perms <- function(tmpl, data, dep, main, groups, reps, base_fit,
 
   if (nullhyp == "qapy") return(batch(data, NULL))
 
-  out    <- qap_init_pmats(base_fit, NULL, "gaussian", NULL)
+  out    <- qap_init_pmats(base_fit, NULL)
   per_xi <- list()
   for (xi in main) {
     d <- qap_residualise(xi, data, pred, main, has_random, rand_part,

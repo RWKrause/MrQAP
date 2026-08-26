@@ -163,3 +163,55 @@ zip_resid <- function(gmmo) {
   mu <- (1 - pi_z) * lambda
   as.vector(Y - mu)
 }
+
+
+#' Deterministic starting values for a GMM fit
+#'
+#' \code{gmm()} was previously started from \code{rnorm()}. That is a poor
+#' start and a different one on every permutation: the Poisson, negative
+#' binomial and ZIP moment conditions evaluate \code{exp(X \%*\% theta)}, which
+#' overflows for a start drawn without reference to the data, so fits fail
+#' routinely. A failed permutation is dropped and only warned about, and the
+#' failures are not independent of the permuted data, so the surviving set is
+#' not a random subsample. Surviving fits that land on different local optima
+#' inject noise straight into the null distribution.
+#'
+#' The corresponding GLM estimate is a consistent, cheap and deterministic
+#' start for all four supported families.
+#'
+#' @param y Numeric vector; the response.
+#' @param X Numeric matrix; the design, \strong{including} the intercept
+#'   column, exactly as \code{fit_qap_model()} builds it.
+#' @param family Character; \code{"binomial"}, \code{"poisson"},
+#'   \code{"negbin"} or \code{"zip"}.
+#'
+#' @return Numeric vector of starting values: one per column of \code{X}, plus
+#'   a nuisance start for \code{negbin} (\code{log(alpha)}) and \code{zip}
+#'   (\code{logit(pi)}).
+#' @keywords internal
+
+gmm_start <- function(y, X, family) {
+  fam <- if (family == "binomial") stats::binomial() else stats::poisson()
+
+  b <- tryCatch(
+    suppressWarnings(stats::glm.fit(X, y, family = fam)$coefficients),
+    error = function(e) rep(0, ncol(X))
+  )
+  # A separated or rank-deficient design yields NA/Inf coefficients; zero is
+  # a usable start, an infinite one is not.
+  b[!is.finite(b)] <- 0
+  b <- unname(b)
+
+  if (family == "negbin") {
+    # log(alpha); alpha = 1 is the neutral start.
+    return(c(b, 0))
+  }
+  if (family == "zip") {
+    # logit(pi) from the observed zero share, clamped away from the
+    # boundaries so the logit is finite.
+    p0 <- mean(y == 0, na.rm = TRUE)
+    p0 <- min(max(p0, 0.01), 0.99)
+    return(c(b, log(p0 / (1 - p0))))
+  }
+  b
+}

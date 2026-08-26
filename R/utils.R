@@ -299,38 +299,30 @@ fit_qap_model <- function(mod, pred, family,
     y_vec <- pred[[dep_var]]
     x_mat <- cbind(1, as.matrix(pred[, main_vars, drop = FALSE]))
 
+    if (!family %in% c("binomial", "poisson", "negbin", "zip"))
+      stop("GMM estimator is available for binomial, poisson, negbin, ",
+           "and zip families.")
+
+    # Deterministic, data-driven starting values. See gmm_start(): the
+    # previous rnorm() start was redrawn on every permutation and overflowed
+    # the exp() in the count moment conditions routinely.
     gmm_args <- list(
-      x = list(y = y_vec, x = x_mat),
-      t0 = rnorm(nx + 1),
+      x  = list(y = y_vec, x = x_mat),
+      t0 = gmm_start(y_vec, x_mat, family),
       wmatrix = "optimal", vcov = "MDS",
       optfct = "nlminb",
       control = list(eval.max = 10000)
     )
 
-    has_extra_param <- FALSE
+    has_extra_param <- family %in% c("negbin", "zip")
 
-    if (family == "binomial") {
-      gmm_args$g <- logit_moments
-      base_model <- do.call(gmm::gmm, gmm_args)
-    } else if (family == "poisson") {
-      gmm_args$g <- poisson_moments
-      base_model <- do.call(gmm::gmm, gmm_args)
-    } else if (family == "negbin") {
-      # Negative binomial GMM: estimate regression + log(alpha) jointly
-      gmm_args$g  <- negbin_moments
-      gmm_args$t0 <- rnorm(nx + 2)   # extra param for log(alpha)
-      base_model   <- do.call(gmm::gmm, gmm_args)
-      has_extra_param <- TRUE
-    } else if (family == "zip") {
-      # Zero-inflated Poisson GMM: regression + logit(pi) for zero-inflation
-      gmm_args$g  <- zip_moments
-      gmm_args$t0 <- rnorm(nx + 2)   # extra param for logit(pi)
-      base_model   <- do.call(gmm::gmm, gmm_args)
-      has_extra_param <- TRUE
-    } else {
-      stop("GMM estimator is available for binomial, poisson, negbin, ",
-           "and zip families.")
-    }
+    gmm_args$g <- switch(family,
+                         binomial = logit_moments,
+                         poisson  = poisson_moments,
+                         negbin   = negbin_moments,   # coefs + log(alpha)
+                         zip      = zip_moments)      # coefs + logit(pi)
+
+    base_model <- do.call(gmm::gmm, gmm_args)
 
     # gmm() is already called with vcov = "MDS", which yields
     # heteroskedasticity-robust standard errors; resolve_robust_errors()
@@ -576,11 +568,17 @@ compare_perm_to_baseline <- function(perm_coefs, perm_t, base_fit,
   # arguments ("perm_coefs", "perm_t"), which leaks into the user-facing
   # result. Row 1 compares the coefficient, row 2 the t-value.
   #
-  # Multinomial fits are the exception: their coefficients are a matrix of
-  # (ncat - 1) rows, so rbind() stacks 2 * (ncat - 1) rows and the two-row
-  # labelling does not apply.
-  if (nrow(pres) == 2L)
-    rownames(pres) <- rownames(bres) <- qap_stat_rows()
+  # Multinomial fits stack a whole BLOCK of each: their coefficients are a
+  # (ncat - 1) x k matrix, so rbind() gives (ncat - 1) b-rows above
+  # (ncat - 1) t-rows. Label both blocks so this path and qap_init_pmats()
+  # produce identically-named matrices.
+  h <- nrow(pres) %/% 2L
+  rownames(pres) <- rownames(bres) <- if (h == 1L) {
+    qap_stat_rows()
+  } else {
+    cats <- rownames(base_fit$coefficients)
+    c(paste0("b:", cats), paste0("t:", cats))
+  }
 
   out <- list()
   if (is.null(xi)) {

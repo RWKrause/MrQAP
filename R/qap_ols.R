@@ -191,7 +191,7 @@ qap_ols_perms <- function(tmpl, data, dep, main, groups, reps, base_fit,
     }
 
     # --- qapspp: one column of X is replaced each rep ---
-    out <- qap_init_pmats(base_fit, NULL, "gaussian", NULL)
+    out <- qap_init_pmats(base_fit, NULL)
     per_xi <- list()
 
     for (xi in main) {

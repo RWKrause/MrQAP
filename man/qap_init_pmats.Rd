@@ -4,16 +4,12 @@
 \alias{qap_init_pmats}
 \title{Initialise the p-value matrices for qapspp}
 \usage{
-qap_init_pmats(base_fit, comparison, family, ncat = NULL)
+qap_init_pmats(base_fit, comparison)
 }
 \arguments{
 \item{base_fit}{Baseline fit, or list of fits when comparisons are used.}
 
 \item{comparison}{Comparison list or NULL.}
-
-\item{family}{Character; model family.}
-
-\item{ncat}{Integer; number of outcome categories (multinomial only).}
 }
 \value{
 A list with \code{lower}, \code{larger}, \code{abs}.
@@ -22,5 +18,9 @@ A list with \code{lower}, \code{larger}, \code{abs}.
 Under qapspp each predictor is tested in its own set of permutations, so
 the result matrices are filled one column at a time and start as NA.  The
 intercept column is never filled: it has no meaning under semi-partialling.
+}
+\details{
+The shape is read off the baseline coefficients, so a multinomial fit --
+whose coefficients are a matrix -- needs no special-casing by the caller.
 }
 \keyword{internal}

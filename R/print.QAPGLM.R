@@ -56,6 +56,16 @@ print.QAPGLM <- function(x, ...,
       .print_glm_table(x$base[[k]], x$lower[[k]], x$larger[[k]], x$abs[[k]],
                         x$nullhyp, print_b)
     }
+  } else if (is.matrix(x$coefficients)) {
+    # Multinomial: the coefficients are a (ncat - 1) x k matrix and the
+    # p-value matrices stack a block of b-rows above a block of t-rows, so
+    # neither the exp() column nor the "row 2 is the t-value" shortcut below
+    # applies. qap_coef_table() unpacks the blocks correctly; reuse it rather
+    # than reimplementing the indexing here.
+    cat("\n\nCoefficients:\n")
+    qap_print_coefs(
+      qap_coef_table(x, x$lower, x$larger, x$abs, x$family, x$nullhyp),
+      digits = 4, signif.stars = FALSE, reps = x$reps)
   } else {
     cat("\n\nCoefficients:\n")
     if (print_b) {

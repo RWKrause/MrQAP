@@ -25,17 +25,33 @@ qap_coef_table <- function(base, lower, larger, abs, family, nullhyp) {
   nm  <- names(est)
 
   # Multinomial coefficients are a matrix; flatten to one row per
-  # category-by-term combination.
+  # category-by-term combination.  as.vector() is column-major, so the terms
+  # vary slowest and the categories fastest -- the same order the p-value
+  # blocks below unpack in.
   if (is.matrix(est)) {
     nm  <- as.vector(outer(rownames(est), colnames(est),
                            function(a, b) paste(a, b, sep = ":")))
+    # One flag per flattened element, marking which came from the intercept
+    # COLUMN.  Matching on the term string would not work: the flattened
+    # names read "B:(Intercept)".
+    is_icpt <- rep(colnames(est) == "(Intercept)", each = nrow(est))
     est <- as.vector(est)
     tv  <- as.vector(tv)
+  } else {
+    is_icpt <- names(est) == "(Intercept)"
   }
 
-  grab <- function(m, row) {
+  # The p-value matrices stack the b-comparisons above the t-comparisons:
+  # one row of each normally, and (ncat - 1) rows of each for a multinomial
+  # fit.  Take the half, not the row -- indexing row 2 of a multinomial
+  # matrix returns the second CATEGORY's coefficient comparisons.
+  grab <- function(m, half) {
     if (is.null(m)) return(rep(NA_real_, length(est)))
-    if (nrow(m) == 2L) as.vector(m[row, ]) else rep(NA_real_, length(est))
+    h   <- nrow(m) %/% 2L
+    blk <- if (half == 1L) seq_len(h) else h + seq_len(h)
+    v   <- as.vector(m[blk, , drop = FALSE])
+    if (length(v) != length(est)) return(rep(NA_real_, length(est)))
+    v
   }
 
   out <- data.frame(
@@ -52,8 +68,7 @@ qap_coef_table <- function(base, lower, larger, abs, family, nullhyp) {
   # Under semi-partialling the intercept is never permuted, so it has no
   # p-value; make that explicit rather than showing a stale number.
   if (nullhyp == "qapspp") {
-    ic <- out$term == "(Intercept)"
-    out[ic, c("p_lower", "p_upper", "p_value")] <- NA_real_
+    out[is_icpt, c("p_lower", "p_upper", "p_value")] <- NA_real_
   }
 
   if (!family %in% c("gaussian")) {
@@ -223,6 +238,15 @@ vcov.QAP <- function(object, ...) {
 #' fit <- QAP(y ~ x1 + x2, data = d, reps = 200)
 #' confint(fit)
 confint.QAP <- function(object, parm, level = 0.95, ...) {
+  # A multinomial fit's draws are never stacked (the statistic is a matrix,
+  # not a b/t pair), so null_dist is absent by construction. Say that,
+  # rather than sending the user to less_mem, which cannot help here.
+  if (identical(object$family, "multinom"))
+    stop("Permutation confidence intervals are not available for ",
+         "multinomial fits: the permutation draws are a matrix per ",
+         "replication and are not retained. Use summary() for the ",
+         "permutation p-values.")
+
   one <- function(est, nd) {
     if (is.null(nd) || is.null(nd$b))
       stop("No permutation draws were retained, so a permutation-based ",
