@@ -1,14 +1,14 @@
 # ============================================================
-# GPU batch OLS.
+# GPU batch OLS: the pure-R scaffolding.
 #
-# torch is optional and was not installed when this was written, so the
-# torch calls themselves cannot be exercised here. What IS tested is
-# everything around them: eligibility, batch sizing, and the pure-R
-# construction of a permuted design batch.
+# torch is optional, so this file covers only what runs without it --
+# eligibility, batch sizing, and the construction of a permuted design
+# batch. The torch algebra itself is exercised in test-gpu-torch.R, which
+# skips when torch is absent and runs on CUDA when the machine has it.
 #
 # gpu_batch_ols() additionally checks its own first batch against
 # qap_ols_solve() at runtime and stops if they disagree, so a broken
-# torch translation fails loudly on the first machine that has torch.
+# torch translation fails loudly rather than moving p-values.
 # ============================================================
 
 gd <- function(n = 10, seed = 1) {

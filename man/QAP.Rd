@@ -29,7 +29,12 @@ QAP(
   less_mem = FALSE,
   use_gpu = FALSE,
   css = NULL,
-  multi_mode = NULL
+  multi_mode = NULL,
+  sender = NULL,
+  receiver = NULL,
+  perceiver = NULL,
+  split_by = NULL,
+  edge_attr = NULL
 )
 }
 \arguments{
@@ -41,9 +46,18 @@ Use \code{|} (without parentheses) for fixest fixed effects:
 Use \code{(1|var)} for lme4-style random effects: \code{y ~ x1 + (1|sv)}.}
 
 \item{data}{Named list.  Each element is either a square \code{matrix}
-(network data) or a cubic \code{array} (CSS data), or a \code{list} of
-those if there are several networks.  Names must correspond to the
-variables in \code{formula}.}
+  (network data) or a cubic \code{array} (CSS data), or a \code{list} of
+  those if there are several networks.  Names must correspond to the
+  variables in \code{formula}.
+
+  Two other shapes are accepted and converted for you.  A \strong{data
+  frame} of dyadic (or triadic) observations is passed to
+  \code{\link{df_to_mat}}; name the dimension columns with
+  \code{sender}, \code{receiver} and optionally \code{perceiver}, and
+  split it into several networks with \code{split_by}.  List elements
+  that are \pkg{igraph} or \pkg{network} objects are converted to
+  adjacency matrices, reading the edge attribute named by
+  \code{edge_attr} if you give one.}
 
 \item{family}{Character; model family (default \code{"gaussian"}).
 Supported: \code{"gaussian"}, \code{"binomial"}, \code{"poisson"},
@@ -128,6 +142,17 @@ the dimensions differ in size and \code{FALSE} otherwise -- a square
 matrix is genuinely ambiguous, so state it explicitly if your node sets
 happen to be the same size.  Self-ties and undirected mode are
 undefined for multi-mode data and are rejected.}
+
+\item{sender, receiver, perceiver}{Character; the columns identifying each
+dimension.  Required when \code{data} is a data frame, ignored
+otherwise.}
+
+\item{split_by}{Character; a column to split a data-frame \code{data} by,
+giving one network per level.}
+
+\item{edge_attr}{Character; the edge attribute to read from
+\code{igraph}/\code{network} objects.  \code{NULL} gives a binary
+adjacency matrix.}
 }
 \value{
 An object of class \code{QAPCSS} (CSS data), \code{QAPRegression}

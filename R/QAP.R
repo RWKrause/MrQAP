@@ -17,6 +17,15 @@
 #'   those if there are several networks.  Names must correspond to the
 #'   variables in \code{formula}.
 #'
+#'   Two other shapes are accepted and converted for you.  A \strong{data
+#'   frame} of dyadic (or triadic) observations is passed to
+#'   \code{\link{df_to_mat}}; name the dimension columns with
+#'   \code{sender}, \code{receiver} and optionally \code{perceiver}, and
+#'   split it into several networks with \code{split_by}.  List elements
+#'   that are \pkg{igraph} or \pkg{network} objects are converted to
+#'   adjacency matrices, reading the edge attribute named by
+#'   \code{edge_attr} if you give one.
+#'
 #' @param family Character; model family (default \code{"gaussian"}).
 #'   Supported: \code{"gaussian"}, \code{"binomial"}, \code{"poisson"},
 #'   \code{"negbin"} (negative binomial), \code{"zip"} (zero-inflated
@@ -85,6 +94,15 @@
 #'   \code{NULL} (default) detects it from the dimensions of the dependent
 #'   variable.  Supplying \code{TRUE} or \code{FALSE} asserts it, and errors
 #'   if the data do not match.
+#'
+#' @param sender,receiver,perceiver Character; the columns identifying each
+#'   dimension.  Required when \code{data} is a data frame, ignored
+#'   otherwise.
+#' @param split_by Character; a column to split a data-frame \code{data} by,
+#'   giving one network per level.
+#' @param edge_attr Character; the edge attribute to read from
+#'   \code{igraph}/\code{network} objects.  \code{NULL} gives a binary
+#'   adjacency matrix.
 #'
 #' @param multi_mode Logical or \code{NULL}; does each dimension index its
 #'   own node set (2- or 3-mode data, as produced by
@@ -158,7 +176,12 @@ QAP <- function(formula,
                 less_mem   = FALSE,
                 use_gpu    = FALSE,
                 css        = NULL,
-                multi_mode = NULL) {
+                multi_mode = NULL,
+                sender     = NULL,
+                receiver   = NULL,
+                perceiver  = NULL,
+                split_by   = NULL,
+                edge_attr  = NULL) {
 
   mode      <- match.arg(mode, c("directed", "undirected"))
   nullhyp   <- match.arg(nullhyp, c("qapspp", "qapy"))
@@ -178,6 +201,12 @@ QAP <- function(formula,
     }
     set.seed(seed)
   }
+
+  # --- coerce the input to matrices before anything else looks at it ---
+  data <- qap_coerce_data(data, sender = sender, receiver = receiver,
+                          perceiver = perceiver, split_by = split_by,
+                          mode = mode, diag = diag, multi_mode = multi_mode,
+                          attr = edge_attr)
 
   # --- parse formula ---
   parsed    <- parse_qap_formula(formula, fixest_se_cluster)
