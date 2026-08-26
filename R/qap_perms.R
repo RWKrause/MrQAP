@@ -256,15 +256,8 @@ qap_cpu_perms <- function(data, parsed, mode, diag, groups, reps, base_fit,
     out
   }
 
-  if (requireNamespace("progressr", quietly = TRUE)) {
-    total_reps <- if (nullhyp == "qapy") reps else reps * length(main)
-    progressr::with_progress({
-      p <- progressr::progressor(steps = total_reps)
-      body(p)
-    })
-  } else {
-    body(NULL)
-  }
+  qap_with_progressor(
+    body, steps = if (nullhyp == "qapy") reps else reps * length(main))
 }
 
 

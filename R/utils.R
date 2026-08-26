@@ -816,6 +816,27 @@ check_dimnames <- function(x, y, vx, vy, net = NULL) {
 }
 
 
+#' Run a permutation driver under a progress reporter
+#'
+#' The package emits progress; it does not decide whether progress is
+#' shown.  \pkg{progressr}'s contract is that a package creates a
+#' \code{progressor()} and the \emph{end user} switches reporting on by
+#' wrapping the call in \code{progressr::with_progress()}.  Calling
+#' \code{with_progress()} inside the package instead made progress output
+#' compulsory and nested badly when a user wrapped \code{QAP()} in their own.
+#'
+#' @param body Function of one argument, the progressor (or NULL).
+#' @param steps Integer; total number of permutations to report.
+#'
+#' @return Whatever \code{body} returns.
+#' @keywords internal
+
+qap_with_progressor <- function(body, steps) {
+  if (!requireNamespace("progressr", quietly = TRUE)) return(body(NULL))
+  body(progressr::progressor(steps = steps))
+}
+
+
 #' Set up parallel processing with the future framework
 #'
 #' Returns the function that undoes the change, rather than leaving the
@@ -861,16 +882,24 @@ setup_future_plan <- function(ncores = NULL) {
 
 run_permutations <- function(reps, FUN, ..., p = NULL) {
   if (!is.null(p)) {
+    # Signalling progress is a condition throw, which at sub-millisecond
+    # permutations costs a visible share of the run. Signal in batches of
+    # roughly 1% instead, which is also a smoother bar. p(amount = ) keeps
+    # the reported total honest.
+    step <- max(1L, reps %/% 100L)
     results <- future.apply::future_lapply(
       1:reps,
       function(i, ...) {
         res <- FUN(i, ...)
-        p()
+        if (i %% step == 0L) p(amount = step)
         res
       },
       ...,
       future.seed = TRUE
     )
+    # Whatever the batching left over, so the bar finishes.
+    left <- reps - (reps %/% step) * step
+    if (left > 0L) p(amount = left)
   } else {
     results <- future.apply::future_lapply(
       1:reps,

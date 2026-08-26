@@ -149,6 +149,100 @@ qap_ols_solve <- function(X, y, qrX = NULL, xtxd = NULL, robust = FALSE) {
 }
 
 
+#' Precompute the Frisch-Waugh-Lovell decomposition for one tested predictor
+#'
+#' Under \code{qapspp} only one column of the design changes per
+#' permutation, and only that column's coefficient and t-value are ever
+#' read -- \code{compare_perm_to_baseline(..., xi =)} discards the rest. A
+#' full \code{qr()} of the whole design per replication therefore computes
+#' \code{p - 1} coefficients to throw them away.
+#'
+#' Frisch-Waugh-Lovell gives the same number from a decomposition of the
+#' \emph{fixed} columns, formed once here: with \eqn{Z} the untested columns
+#' and \eqn{\tilde{y}}, \eqn{\tilde{x}} the residuals of \eqn{y} and the
+#' tested column on \eqn{Z},
+#' \deqn{b = \tilde{x}'\tilde{y} / \tilde{x}'\tilde{x}}
+#' and the full model's residual sum of squares is
+#' \eqn{RSS_y - b^2 \tilde{x}'\tilde{x}}. Both are exact, not approximations.
+#'
+#' @param X Model matrix including the intercept column.
+#' @param y Response vector.
+#' @param col Integer; the column of \code{X} that the permutation replaces.
+#' @param robust Logical; precompute the leverages HC3 needs.
+#'
+#' @return A list consumed by \code{qap_fwl_solve()}.
+#' @keywords internal
+
+qap_fwl_template <- function(X, y, col, robust = FALSE) {
+  Z   <- X[, -col, drop = FALSE]
+  qrZ <- qr(Z)
+
+  out <- list(qrZ = qrZ,
+              y_t = qr.resid(qrZ, y),
+              df  = nrow(X) - ncol(X),
+              robust = robust)
+  out$rss_y <- sum(out$y_t^2)
+
+  if (robust) {
+    # Leverages of the fixed columns. The full design's leverages are
+    # h = h_Z + x_t^2 / sxx, so only this part is invariant.
+    Q     <- qr.Q(qrZ)
+    out$h_Z <- rowSums(Q^2)
+  }
+  out
+}
+
+
+#' Solve one permuted column via Frisch-Waugh-Lovell
+#'
+#' @param fw Output of \code{qap_fwl_template()}.
+#' @param xcol Numeric vector; the permuted predictor column.
+#'
+#' @return A list with \code{b} and \code{t} for that column alone.
+#' @keywords internal
+
+qap_fwl_solve <- function(fw, xcol) {
+  x_t <- qr.resid(fw$qrZ, xcol)
+  sxx <- sum(x_t^2)
+  b   <- sum(x_t * fw$y_t) / sxx
+
+  if (!fw$robust) {
+    # Residual SS of the FULL model, without forming its residuals.
+    s2 <- (fw$rss_y - b^2 * sxx) / fw$df
+    return(list(b = b, t = b / sqrt(s2 / sxx)))
+  }
+
+  # HC3 for a single coefficient is the sandwich specialised through the
+  # same residualised regressor: sum(x_t^2 * omega) / sxx^2.
+  e  <- fw$y_t - b * x_t          # full-model residuals
+  h  <- fw$h_Z + x_t^2 / sxx      # full-model leverages
+  v  <- sum(x_t^2 * e^2 / (1 - h)^2) / sxx^2
+  list(b = b, t = b / sqrt(v))
+}
+
+
+#' Compare one predictor's permuted statistics against the baseline
+#'
+#' The single-column counterpart of \code{compare_perm_to_baseline()}, for
+#' the FWL path, which never forms the other coefficients.
+#'
+#' @param b,t Numeric; the permuted coefficient and t-value.
+#' @param base_b,base_t Numeric; the same from the baseline fit.
+#'
+#' @return A list shaped exactly like
+#'   \code{compare_perm_to_baseline(..., xi =)}.
+#' @keywords internal
+
+qap_compare_one <- function(b, t, base_b, base_t) {
+  pres <- stats::setNames(c(b, t), qap_stat_rows())
+  bres <- stats::setNames(c(base_b, base_t), qap_stat_rows())
+  list(lower  = pres <= bres,
+       larger = pres >= bres,
+       abs    = abs(pres) >= abs(bres),
+       draw   = pres)
+}
+
+
 #' Run the permutation loop on the fast OLS path
 #'
 #' @return A list with \code{lower}, \code{larger}, \code{abs}.
@@ -203,15 +297,19 @@ qap_ols_perms <- function(tmpl, data, dep, main, groups, reps, base_fit,
       xobj <- d[[xi]]
       col  <- match(xi, colnames(X))
 
+      # Only this column's statistics are ever read, so decompose the fixed
+      # columns once and solve for the one coefficient per replication.
+      fw     <- qap_fwl_template(X, tmpl$y, col, robust = use_robust_errors)
+      base_b <- base_fit$coefficients[[xi]]
+      base_t <- base_fit$t[[xi]]
+
       res <- run_permutations(
         reps,
         function(i) {
           xp <- perm_networks(xobj, groups, CSS = css,
                               multi_mode = multi_mode)
-          Xp <- X
-          Xp[, col] <- extract(xp)
-          f <- qap_ols_solve(Xp, tmpl$y, robust = use_robust_errors)
-          compare_perm_to_baseline(f$coefficients, f$t, base_fit, xi = xi)
+          f  <- qap_fwl_solve(fw, extract(xp))
+          qap_compare_one(f$b, f$t, base_b, base_t)
         },
         p = p
       )
@@ -227,13 +325,6 @@ qap_ols_perms <- function(tmpl, data, dep, main, groups, reps, base_fit,
     out
   }
 
-  if (requireNamespace("progressr", quietly = TRUE)) {
-    total_reps <- if (nullhyp == "qapy") reps else reps * length(main)
-    progressr::with_progress({
-      p <- progressr::progressor(steps = total_reps)
-      body(p)
-    })
-  } else {
-    body(NULL)
-  }
+  qap_with_progressor(
+    body, steps = if (nullhyp == "qapy") reps else reps * length(main))
 }
