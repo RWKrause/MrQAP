@@ -14,6 +14,9 @@ jobs:
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       NOT_CRAN: true
+      # Suggests are installed here, torch included, but its LibTorch back
+      # end is not; torch_ready() makes the torch tests skip rather than fail.
+      TORCH_INSTALL: "0"
 
     steps:
       - uses: actions/checkout@v4

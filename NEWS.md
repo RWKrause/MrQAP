@@ -211,6 +211,15 @@ analysis affected by these.**
 * `confint()` and `plot()` explain why they are unavailable for
   multinomial fits instead of blaming `less_mem`.
 
+* **The GPU path now checks that torch can actually run.** `torch` installs
+  in two halves -- the R package, and the LibTorch binaries it downloads on
+  first use -- and only the first was being checked. On a machine with the
+  package but not the back end (a CI runner, typically) `use_gpu = TRUE`
+  and the GPU tests died with `Lantern is not loaded` instead of failing
+  with an explanation or skipping. `gpu_available()` now reports `FALSE`
+  there, `use_gpu = TRUE` says which half is missing, and the torch tests
+  skip.
+
 ## Performance
 
 The permutation loop is roughly an order of magnitude faster:

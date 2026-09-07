@@ -4,7 +4,7 @@
 # torch is optional, so this file covers only what runs without it --
 # eligibility, batch sizing, and the construction of a permuted design
 # batch. The torch algebra itself is exercised in test-gpu-torch.R, which
-# skips when torch is absent and runs on CUDA when the machine has it.
+# skips when torch cannot run and uses CUDA when the machine has it.
 #
 # gpu_batch_ols() additionally checks its own first batch against
 # qap_ols_solve() at runtime and stops if they disagree, so a broken
@@ -60,9 +60,8 @@ test_that("a permuted column batch is a rearrangement of the original", {
   expect_false(isTRUE(all.equal(Pc[, 1], Pc[, 2])))
 })
 
-test_that("use_gpu without torch falls back rather than failing", {
-  skip_if(requireNamespace("torch", quietly = TRUE),
-          "torch is installed; this checks the no-torch path")
+test_that("use_gpu without a usable torch fails with a torch message", {
+  skip_if(torch_ready(), "torch works here; this checks the no-torch path")
   d <- gd()
   # gaussian + complete data is GPU-eligible, so this reaches gpu_batch_ols
   expect_error(QAP(y ~ x1 + x2, data = d, use_gpu = TRUE, reps = 5, seed = 1),
@@ -101,7 +100,8 @@ test_that("GPU runs are attempted only for eligible models", {
 # Torch algebra.
 #
 # These are the ONLY tests that execute the torch calls. They skip
-# when torch is absent. Install torch and re-run to verify.
+# when torch cannot run -- the package missing, or its LibTorch back end
+# never downloaded. Install both and re-run to verify.
 #
 # Each compares the batched tensor solve against qap_ols_solve(),
 # which is itself checked against lm() in test-fastpath.R.
@@ -116,7 +116,7 @@ rand_design <- function(n = 200, p = 3, seed = 1) {
 }
 
 test_that("gpu_solve_fixed_x matches the CPU solver for every column", {
-  skip_if_not_installed("torch")
+  skip_if_not(torch_ready(), "torch has no usable LibTorch back end")
   X <- rand_design(n = 250, p = 4)
   set.seed(2)
   Y <- matrix(rnorm(nrow(X) * 6), nrow(X), 6)
@@ -135,7 +135,7 @@ test_that("gpu_solve_fixed_x matches the CPU solver for every column", {
 })
 
 test_that("gpu_solve_varying_x matches the CPU solver for every design", {
-  skip_if_not_installed("torch")
+  skip_if_not(torch_ready(), "torch has no usable LibTorch back end")
   X <- rand_design(n = 250, p = 4)
   set.seed(3)
   y  <- rnorm(nrow(X))
@@ -157,7 +157,7 @@ test_that("gpu_solve_varying_x matches the CPU solver for every design", {
 })
 
 test_that("both solvers handle a batch of one", {
-  skip_if_not_installed("torch")
+  skip_if_not(torch_ready(), "torch has no usable LibTorch back end")
   X <- rand_design(n = 120, p = 3)
   set.seed(4)
   y <- rnorm(nrow(X))
@@ -190,7 +190,7 @@ test_that("the CUDA device gives the same answer as the CPU device", {
 })
 
 test_that("a full GPU run agrees statistically with the CPU run", {
-  skip_if_not_installed("torch")
+  skip_if_not(torch_ready(), "torch has no usable LibTorch back end")
   # The GPU path draws permutations in the main session while the CPU path
   # uses future's L'Ecuyer streams, so the two see DIFFERENT permutations
   # and p-values agree only up to Monte Carlo error. Coefficients come from
@@ -219,7 +219,7 @@ test_that("a full GPU run agrees statistically with the CPU run", {
 })
 
 test_that("the GPU path handles CSS and two-mode data", {
-  skip_if_not_installed("torch")
+  skip_if_not(torch_ready(), "torch has no usable LibTorch back end")
   set.seed(7)
   m  <- 7
   a1 <- array(rnorm(m^3), dim = c(m, m, m))

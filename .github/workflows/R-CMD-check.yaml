@@ -27,9 +27,12 @@ jobs:
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
-      # torch downloads a ~200 MB libtorch on first use and needs a GPU to
+      # torch downloads a ~200 MB LibTorch on first use and needs a GPU to
       # be worth testing; the torch-dependent tests skip without it.
       NOT_CRAN: true
+      # Stop torch from fetching LibTorch behind our back if a future
+      # version decides to; the tests gate on torch_ready() either way.
+      TORCH_INSTALL: "0"
 
     steps:
       - uses: actions/checkout@v4
@@ -44,8 +47,11 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          # torch is in Suggests but is not installed here: it pulls a large
-          # binary at run time and every test that needs it skips cleanly.
+          # `needs: check` installs Suggests, so the torch R package IS
+          # here -- but not the LibTorch binary it downloads on first use.
+          # Tests gate on torch_ready(), which checks for both halves, so
+          # the torch-dependent tests skip rather than hitting
+          # "Lantern is not loaded".
           extra-packages: any::rcmdcheck
           needs: check
 

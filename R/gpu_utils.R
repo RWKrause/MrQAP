@@ -50,6 +50,10 @@ gpu_batch_ols <- function(tmpl, data, dep, main, groups, reps, baseline_fit,
     stop("The 'torch' package is required for GPU acceleration. ",
          "Install it with: install.packages('torch')")
 
+  if (!torch_ready())
+    stop("The 'torch' package is installed but its LibTorch back end is not. ",
+         "Install it with: torch::install_torch()")
+
   if (use_robust_errors)
     stop("use_gpu = TRUE does not support use_robust_errors; ",
          "run without the GPU for HC3 standard errors.")
@@ -292,6 +296,24 @@ gpu_batch_size <- function(n_obs, p,
 }
 
 
+#' Is torch usable?
+#'
+#' \pkg{torch} installs in two parts: the R package, and the LibTorch
+#' binaries it downloads on first use.  \code{requireNamespace("torch")}
+#' only sees the first, so on a machine that has the package but never
+#' fetched the back end -- a fresh CI runner, most often -- every torch call
+#' fails with "Lantern is not loaded" rather than being absent.  This checks
+#' for both halves, and is what the GPU path and its tests gate on.
+#'
+#' @return Logical; \code{TRUE} if torch calls can actually be made.
+#' @keywords internal
+
+torch_ready <- function() {
+  requireNamespace("torch", quietly = TRUE) &&
+    isTRUE(try(torch::torch_is_installed(), silent = TRUE))
+}
+
+
 #' Check GPU availability
 #'
 #' @return Logical; \code{TRUE} if both \pkg{torch} and CUDA are available.
@@ -301,6 +323,6 @@ gpu_batch_size <- function(n_obs, p,
 #' gpu_available()
 
 gpu_available <- function() {
-  if (!requireNamespace("torch", quietly = TRUE)) return(FALSE)
+  if (!torch_ready()) return(FALSE)
   isTRUE(try(torch::cuda_is_available(), silent = TRUE))
 }

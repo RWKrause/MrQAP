@@ -4,7 +4,9 @@
 # test-gpu.R covers the pure-R scaffolding -- eligibility, batch sizing,
 # permuted-column construction -- which runs without torch. This file runs
 # the torch algebra itself, on the CPU device and, where the machine has
-# one, on CUDA. Every test skips cleanly when torch is absent.
+# one, on CUDA. Every test skips cleanly when torch cannot run -- either
+# because the package is absent or because its LibTorch back end was never
+# downloaded, which is the usual state of a CI runner.
 #
 # The standard the GPU path is held to is the CPU solver: same design, same
 # response, same numbers. That is a stronger claim than "it runs", and it
@@ -12,12 +14,13 @@
 # p-values rather than crash.
 # ============================================================
 
-skip_no_torch <- function() skip_if_not_installed("torch")
+skip_no_torch <- function()
+  skip_if_not(torch_ready(), "torch has no usable LibTorch back end")
 
 # Devices worth testing on this machine: always the CPU torch backend,
 # plus CUDA when it is actually there.
 torch_devices <- function() {
-  if (!requireNamespace("torch", quietly = TRUE)) return(character(0))
+  if (!torch_ready()) return(character(0))
   c("cpu", if (isTRUE(try(torch::cuda_is_available(), silent = TRUE))) "cuda")
 }
 
@@ -262,6 +265,16 @@ test_that("ineligible models warn and fall back to the CPU", {
 
 test_that("gpu_available reports the real state of this machine", {
   expect_type(gpu_available(), "logical")
-  if (!requireNamespace("torch", quietly = TRUE))
+  if (!torch_ready())
     expect_false(gpu_available())
+})
+
+
+test_that("torch_ready sees the back end, not just the package", {
+  expect_type(torch_ready(), "logical")
+  expect_length(torch_ready(), 1)
+  # The package is a precondition for the back end, never the other way round.
+  if (torch_ready()) expect_true(requireNamespace("torch", quietly = TRUE))
+  # And a usable GPU implies a usable back end.
+  if (gpu_available()) expect_true(torch_ready())
 })
