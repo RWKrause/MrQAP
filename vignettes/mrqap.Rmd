@@ -1,0 +1,462 @@
+---
+title: "MRQAP for networks, cognitive social structures and multi-mode data"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{MRQAP for networks, cognitive social structures and multi-mode data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+library(MrQAP)
+set.seed(20260825)
+```
+
+## Why permutation inference
+
+A regression on dyadic data violates the independence assumption in an
+obvious way. Every tie sent by actor *i* shares a sender; every tie received
+by *j* shares a receiver. Observations are therefore correlated in a
+structured way that ordinary standard errors do not know about, and the
+resulting p-values are badly anti-conservative.
+
+The quadratic assignment procedure sidesteps the problem instead of
+modelling it. Permute the network — relabel the nodes, keeping the structure
+intact — refit, and repeat. That gives an empirical null distribution for
+each coefficient, built from data with the same dependence structure as the
+original but with the hypothesised relationship destroyed. The p-value is
+the proportion of permutations that produced a statistic at least as extreme
+as the observed one.
+
+`MrQAP` exposes one function, `QAP()`, for all of this.
+
+## A one-mode network
+
+We simulate a 20-node network whose tie strength depends on two dyadic
+covariates.
+
+```{r simulate}
+n  <- 20
+x1 <- matrix(rnorm(n^2), n, n)   # e.g. shared activity
+x2 <- matrix(rnorm(n^2), n, n)   # e.g. geographic distance
+
+y <- 1 + 0.8 * x1 - 0.4 * x2 + matrix(rnorm(n^2), n, n)
+
+d <- list(y = y, x1 = x1, x2 = x2)
+```
+
+The left-hand side of the formula names the outcome in `data`; the
+right-hand side names the predictors.
+
+```{r fit-basic}
+fit <- QAP(y ~ x1 + x2, data = d, reps = 200)
+fit
+```
+
+The table gives, for each coefficient, the proportion of permutations whose
+t-value was below the observed one, above it, and above it in absolute
+value. The last is the two-sided p-value and is usually what you want.
+
+The intercept is marked `*` because semi-partialling plus provides no test
+for it — the procedure works by residualising each predictor on the others,
+which has no analogue for a constant.
+
+Coefficients come out where you would expect:
+
+```{r coefs}
+round(fit$coefficients, 3)
+```
+
+## Getting the results out
+
+Printing is for reading; the extractor methods are for using.
+
+```{r extractors}
+coef(fit)
+
+summary(fit)$coefficients          # a data frame, one row per term
+
+as.data.frame(fit)                 # the same, for stacking across models
+```
+
+`summary()` prints the same report as the fit itself, with significance
+codes added:
+
+```{r summary}
+summary(fit)
+```
+
+Note how a p-value of zero is shown. A permutation p-value is a proportion
+out of `reps` draws, so its resolution is `1/reps` — with 200 permutations
+the smallest value distinguishable from zero is 0.005. It is reported as
+`<0.005`, not as the `<2e-16` that a conventional coefficient table would
+print, because the permutation test cannot support that claim.
+
+### Confidence intervals
+
+`confint()` builds intervals from the *spread* of the permutation
+distribution, so they reflect the same dyadic dependence the p-values do:
+
+```{r confint}
+confint(fit)
+```
+
+It is worth being explicit about what this is not. The permutation
+distribution is generated under the null of no effect, so it is centred on
+zero — its percentiles form an interval around zero and are not a
+confidence interval at all. Only its standard deviation *s* is used, as
+`estimate ± 1.96 * s`. That is a normal approximation: for a strongly
+skewed coefficient, treat it as indicative.
+
+Compare it with the model-based interval, which assumes the independence
+MRQAP exists to avoid — usually narrower, and not consistent with the
+reported p-value:
+
+```{r confint-compare}
+rbind(permutation = confint(fit)["x1", ],
+      model_based = confint(fit$simple_fit)["x1", ])
+```
+
+`vcov()`, `fitted()`, `residuals()`, `logLik()`, `AIC()`, `BIC()` and
+`nobs()` all describe the *baseline* fit, and carry the same caveat: they
+know nothing about the permutation inference.
+
+### Seeing the null distribution
+
+A p-value is a summary of a distribution, and it is worth looking at the
+distribution itself. `plot()` draws the permutation draws for each tested
+coefficient with the observed statistic marked in red:
+
+```{r plot, fig.width = 7, fig.height = 3.2}
+op <- par(mfrow = c(1, 2), mar = c(4, 4, 2, 1))
+plot(fit)
+par(op)
+```
+
+An effect whose observed statistic sits well outside the histogram is the
+picture a small p-value is describing; one sitting inside it is not.
+
+### Predicting
+
+`predict()` gives fitted values on the response scale, and
+`type = "matrix"` puts them back into the shape of the network, with `NA`
+wherever a cell did not enter the model:
+
+```{r predict}
+p_hat <- predict(fit, type = "matrix")
+dim(p_hat)
+round(p_hat[1:4, 1:4], 2)          # the diagonal is NA, as it was dropped
+```
+
+Pass `newdata` — a named list of matrices shaped like the fitted data — to
+predict for a different network.
+
+## Choosing the null hypothesis
+
+Two procedures are available.
+
+`nullhyp = "qapspp"` — the default — is Dekker, Krackhardt and Snijders'
+semi-partialling plus. For each predictor in turn it regresses that
+predictor on all the others, permutes the *residuals*, and refits. This is
+the more trustworthy test when the predictors are correlated with each
+other, which is the normal case. It costs `reps` permutations per predictor.
+
+`nullhyp = "qapy"` permutes the outcome instead. It is cheaper — `reps`
+permutations in total — but is the weaker test under collinearity.
+
+```{r nullhyp}
+qy <- QAP(y ~ x1 + x2, data = d, nullhyp = "qapy", reps = 200)
+
+round(rbind(qapspp = fit$abs["t", ], qapy = qy$abs["t", ]), 3)
+```
+
+With a single predictor the two coincide, and `QAP()` silently uses `qapy`.
+
+## Families beyond the linear model
+
+Binary ties are the common case. Everything else about the call is the same.
+
+```{r binomial}
+eta <- -0.5 + 1.2 * x1
+yb  <- matrix(rbinom(n^2, 1, 1 / (1 + exp(-eta))), n, n)
+
+bfit <- QAP(y ~ x1 + x2, data = list(y = yb, x1 = x1, x2 = x2),
+            family = "binomial", reps = 200)
+round(bfit$coefficients, 3)
+```
+
+For binomial models `QAP()` also returns a confusion matrix built by drawing
+from the predicted probabilities rather than by rounding them at 0.5, which
+gives an honest picture of classification uncertainty:
+
+```{r confusion}
+bfit$confusion_matrix$accuracy
+```
+
+`family` also accepts `"poisson"`, `"negbin"`, `"zip"` and `"multinom"`.
+
+## Robust standard errors
+
+`use_robust_errors = TRUE` gives heteroskedasticity-consistent standard
+errors: the closed-form HC3 for linear models, and the sandwich estimator
+for GLMs.
+
+```{r robust}
+rfit <- QAP(y ~ x1 + x2, data = d, use_robust_errors = TRUE, reps = 200)
+round(rbind(model_based = fit$t, robust = rfit$t), 2)
+```
+
+They are not available for mixed models, where `QAP()` warns and falls back
+to model-based errors rather than reporting a number that is not what it
+claims to be.
+
+## Weights and offsets
+
+`weights` scales each dyad's contribution to the fit; `offset` enters the
+linear predictor with its coefficient fixed at one, which is how exposure
+enters a count model. Each is a matrix shaped exactly like the dependent
+variable:
+
+```{r weights, eval = FALSE}
+QAP(ties ~ x1, data = d, family = "poisson",
+    offset = log(opportunities))     # rate per opportunity
+```
+
+Both work for every family and for both estimators, including GMM, where
+they enter the moment conditions directly.
+
+It matters what these do under permutation. A weight and an offset belong
+to the *cell* — this sender, this receiver — not to the actors. They
+therefore stay in place while the outcome (or, under `qapspp`, the tested
+predictor) is relabelled: they are part of the fixed design against which
+the null distribution is generated, not quantities that travel with the
+permutation. If your weights are a property of the actors rather than of
+the dyad, that is a different model and this is not it.
+
+## Restricting permutations to groups
+
+If the network has a known block structure — classrooms within a school,
+departments within a firm — permuting freely across it destroys more than
+the hypothesised effect. `groups` restricts each permutation to occur within
+groups.
+
+```{r groups}
+grp <- rep(1:4, each = 5)
+QAP(y ~ x1 + x2, data = d, groups = grp, reps = 200)$abs["t", ]
+```
+
+## Cognitive social structures
+
+A CSS records each actor's *perception* of the whole network: a 3D array
+indexed `[sender, receiver, perceiver]`. `QAP()` detects the extra dimension
+and permutes accordingly — one node order applied across all three
+dimensions, since sender, receiver and perceiver are the same people.
+
+```{r css}
+m  <- 8
+a1 <- array(rnorm(m^3), dim = c(m, m, m))
+ya <- 0.7 * a1 + array(rnorm(m^3), dim = c(m, m, m))
+
+cfit <- QAP(y ~ x1, data = list(y = ya, x1 = a1), reps = 100)
+round(cfit$coefficients, 3)
+```
+
+Perceiver-level heterogeneity can be absorbed with a random intercept:
+
+```{r css-re, eval = requireNamespace("lme4", quietly = TRUE)}
+QAP(y ~ x1, data = list(y = ya, x1 = a1),
+    random_intercept_perceiver = TRUE, reps = 50)$coefficients
+```
+
+## Multi-mode data
+
+In two-mode (affiliation) data the rows and columns are *different* kinds of
+thing — people and organisations, say. There is no diagonal to exclude,
+because an actor cannot have a tie to itself across node sets, and no
+reciprocity, because there is no reverse dyad. The permutation must
+therefore draw an independent node order for each dimension.
+
+`QAP()` infers this when the dimensions differ in size:
+
+```{r twomode}
+nr <- 24; nc <- 8                      # 24 people, 8 organisations
+p1 <- matrix(rnorm(nr * nc), nr, nc)
+yt <- 0.6 * p1 + matrix(rnorm(nr * nc), nr, nc)
+
+tfit <- QAP(y ~ x1, data = list(y = yt, x1 = p1), reps = 100)
+tfit$multi_mode
+nrow(model.frame(tfit$simple_fit))     # nr * nc: nothing is dropped
+```
+
+A **square** matrix is genuinely ambiguous — it could be one-mode, or
+two-mode with equally large node sets — so it is assumed to be one-mode.
+Say so explicitly when it is not:
+
+```{r twomode-square}
+sq <- list(y = yt[1:8, ], x1 = p1[1:8, ])
+QAP(y ~ x1, data = sq, multi_mode = TRUE, reps = 50)$multi_mode
+```
+
+Groups for multi-mode data are given per dimension, as a *named* list:
+
+```{r twomode-groups}
+QAP(y ~ x1, data = list(y = yt, x1 = p1),
+    groups = list(sender   = rep(1:3, each = 8),
+                  receiver = rep(1:2, each = 4)),
+    reps = 50)$abs["t", ]
+```
+
+Asking for something multi-mode data cannot support is an error rather than
+a silent misapplication:
+
+```{r twomode-errors, error = TRUE}
+QAP(y ~ x1, data = list(y = yt, x1 = p1), mode = "undirected", reps = 10)
+```
+
+## Several networks at once
+
+Pass a list of matrices (or arrays) per variable to pool across networks.
+Each is permuted independently, and `random_intercept_nets` adds a
+network-level random intercept.
+
+```{r multinet}
+mk <- function(k) matrix(rnorm(k^2), k, k)
+xs <- list(mk(10), mk(12))
+ys <- lapply(xs, function(x) 0.7 * x + matrix(rnorm(length(x)),
+                                              nrow(x), ncol(x)))
+
+QAP(y ~ x1, data = list(y = ys, x1 = xs), reps = 50)$coefficients
+```
+
+Group vectors can be given per network as an *unnamed* list, one element per
+network — which is how they are told apart from the named per-dimension form
+above.
+
+## Building the input from a data frame
+
+Dyadic data usually arrive as an edge list. `df_to_mat()` converts one to
+the named list of matrices `QAP()` expects.
+
+```{r df-to-mat}
+edges <- expand.grid(sender = letters[1:6], receiver = letters[1:6],
+                     stringsAsFactors = FALSE)
+edges <- edges[edges$sender != edges$receiver, ]
+edges$weight <- rnorm(nrow(edges))
+edges$shared <- rnorm(nrow(edges))
+
+mats <- df_to_mat(edges, sender = "sender", receiver = "receiver")
+names(mats)
+
+QAP(weight ~ shared, data = mats, reps = 50)$coefficients
+```
+
+It also handles a perceiver column (producing CSS arrays), `multi_mode` for
+two-mode data, and `split_by` for several networks at once.
+
+You can skip the conversion and hand the data frame straight to `QAP()`,
+naming the dimension columns:
+
+```{r df-direct, eval = FALSE}
+QAP(y ~ x1, data = edges, sender = "from", receiver = "to", reps = 200)
+```
+
+`igraph` and `network` objects are accepted in the data list too, and are
+converted to adjacency matrices; `edge_attr` names an edge attribute to
+read as the value, rather than taking the binary adjacency.
+
+## Longer runs
+
+A p-value estimated from 200 permutations is granular to 1/200. Published
+work normally wants 1000 or more; under `qapspp` that is 1000 *per
+predictor*.
+
+Two things help. `ncores` parallelises over permutations:
+
+```{r parallel, eval = FALSE}
+QAP(y ~ x1 + x2, data = d, reps = 5000, ncores = 4)
+```
+
+If you leave `ncores` unset, whatever `future` plan you have configured is
+used unchanged, so you can manage parallelism yourself.
+
+A long run can report progress. `QAP()` emits progress but does not decide
+whether it is shown — wrap the call to switch it on:
+
+```{r progress, eval = FALSE}
+progressr::with_progress(
+  QAP(y ~ x1 + x2, data = d, reps = 5000)
+)
+```
+
+If memory is the constraint rather than time, `less_mem = TRUE` drops the
+fitted model and the permutation draws, which is most of the object.
+`coef()`, `nobs()` and `summary()` still work; `predict()`, `plot()` and
+`confint()` do not.
+
+And separate runs can be pooled afterwards, which is useful when a long job
+has to be split:
+
+```{r combine}
+a <- QAP(y ~ x1 + x2, data = d, reps = 100, seed = 1)
+b <- QAP(y ~ x1 + x2, data = d, reps = 100, seed = 2)
+
+ab <- combine_qap_estimates(a, b)
+ab$reps
+```
+
+Pooling is weighted by the permutations that actually contributed, so the
+runs need not be the same length, and a run that lost permutations to
+non-convergence is not over-weighted. The permutation draws are pooled too,
+so `confint()` on the result uses all of them. For models fitted with
+`comparison=`, each comparison is pooled separately.
+
+Only repeated runs of the *same* model on the *same* data can be pooled,
+and that is checked: the settings must match, and so must the coefficients,
+which differ if and only if the data did.
+
+## Notes on speed
+
+Linear models with complete data take a fast path that precomputes
+everything invariant across permutations and solves the normal equations
+directly, rather than rebuilding the model frame and going through the
+formula interface every time. It is roughly twelve times faster on network
+matrices and fourteen on CSS arrays, and produces identical numbers — the
+test suite checks the two paths against each other at a tolerance of 1e-12.
+
+Under `qapspp` there is a further saving. Only one column of the design
+changes per permutation, and only that column's coefficient and t-value are
+ever compared with the baseline, so the fit is obtained by
+Frisch–Waugh–Lovell from a decomposition of the columns that do *not*
+change — formed once per predictor — instead of re-solving the whole design
+each time. That is exact algebra rather than an approximation, and it puts
+semi-partialling at roughly the same cost per permutation as outcome
+permutation.
+
+Anything the fast path cannot handle — a GLM, random effects, absorbed
+fixed effects, comparisons, weights, an offset, or missing data —
+automatically uses the general engine.
+
+`use_gpu = TRUE` additionally offloads batched linear models to a GPU via
+`torch`, if one is available:
+
+```{r gpu, eval = FALSE}
+gpu_available()
+QAP(y ~ x1 + x2, data = d, reps = 10000, use_gpu = TRUE)
+```
+
+The GPU is worth it only on reasonably large networks: below a few thousand
+dyads the transfer overhead exceeds the work, and on a CPU-only `torch`
+install it is slower than the plain fast path throughout. Each run
+re-checks its first batch against the CPU solver and stops if the two
+disagree, so a broken driver or `torch` upgrade fails loudly rather than
+moving p-values quietly.
+
+## References
+
+Dekker, D., Krackhardt, D., & Snijders, T. A. B. (2007). Sensitivity of
+MRQAP tests to collinearity and autocorrelation conditions.
+*Psychometrika*, 72(4), 563–581.
+
+Krackhardt, D. (1988). Predicting with networks: Nonparametric multiple
+regression analysis of dyadic data. *Social Networks*, 10(4), 359–381.

@@ -158,7 +158,7 @@ test_that("QAPglm GMM works for binomial", {
   skip_if_not_installed("gmm")
   d <- make_gmm_binary()
   fit <- suppressWarnings(
-    QAPglm(y ~ x1 + x2, data = d,
+    QAP(y ~ x1 + x2, data = d,
            family = "binomial", estimator = "gmm",
            nullhyp = "qapy", reps = 20, seed = 1, ncores = 1)
   )
@@ -172,7 +172,7 @@ test_that("QAPglm GMM works for poisson", {
   skip_if_not_installed("gmm")
   d <- make_gmm_count()
   fit <- suppressWarnings(
-    QAPglm(y ~ x1 + x2, data = d,
+    QAP(y ~ x1 + x2, data = d,
            family = "poisson", estimator = "gmm",
            nullhyp = "qapy", reps = 20, seed = 1, ncores = 1)
   )
@@ -185,7 +185,7 @@ test_that("QAPglm GMM works for negbin", {
   skip_if_not_installed("gmm")
   d <- make_gmm_negbin(n = 15, seed = 99)
   fit <- suppressWarnings(
-    QAPglm(y ~ x1 + x2, data = d,
+    QAP(y ~ x1 + x2, data = d,
            family = "negbin", estimator = "gmm",
            nullhyp = "qapy", reps = 20, seed = 1, ncores = 1)
   )
@@ -198,7 +198,7 @@ test_that("QAPglm GMM works for zip", {
   skip_if_not_installed("gmm")
   d <- make_gmm_zip(n = 15, seed = 99)
   fit <- suppressWarnings(
-    QAPglm(y ~ x1 + x2, data = d,
+    QAP(y ~ x1 + x2, data = d,
            family = "zip", estimator = "gmm",
            nullhyp = "qapy", reps = 20, seed = 1, ncores = 1)
   )
@@ -211,7 +211,7 @@ test_that("QAPglm GMM with robust errors", {
   skip_if_not_installed("gmm")
   d <- make_gmm_binary()
   fit <- suppressWarnings(
-    QAPglm(y ~ x1 + x2, data = d,
+    QAP(y ~ x1 + x2, data = d,
            family = "binomial", estimator = "gmm",
            use_robust_errors = TRUE,
            nullhyp = "qapy", reps = 20, seed = 1, ncores = 1)
@@ -227,7 +227,7 @@ test_that("QAPglm GMM rejects unsupported family", {
             x1 = matrix(rnorm(100), 10, 10))
   diag(d$y) <- diag(d$x1) <- NA
   expect_error(
-    QAPglm(y ~ x1, data = d,
+    QAP(y ~ x1, data = d,
            family = "gaussian", estimator = "gmm",
            reps = 5, seed = 1),
     "GMM estimator"
@@ -238,7 +238,7 @@ test_that("QAPglm GMM print shows estimator", {
   skip_if_not_installed("gmm")
   d <- make_gmm_binary()
   fit <- suppressWarnings(
-    QAPglm(y ~ x1, data = d,
+    QAP(y ~ x1, data = d,
            family = "binomial", estimator = "gmm",
            reps = 20, seed = 1)
   )

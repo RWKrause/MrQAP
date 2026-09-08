@@ -1,4 +1,4 @@
 library(testthat)
 library(MrQAP)
 
-devtools::test()
+test_check("MrQAP")

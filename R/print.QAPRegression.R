@@ -1,4 +1,4 @@
-#' Print QAPglm() results for linear regression
+#' Print QAP() results for linear regression
 #'
 #' @param x An object of class \code{QAPRegression}.
 #' @param print_b Logical; also show parameter-based p-values?

@@ -7,13 +7,48 @@
 combine_qap_estimates(res, res2 = NULL)
 }
 \arguments{
-\item{res}{list; either a \code{list} of \code{class} \code{QAPcss}, \code{QAPregression}, or \code{QAPglm}, or a \code{list} of multiple model outputs that should all be combined.}
+\item{res}{list; either a single fitted model of class \code{QAP}, or a
+\code{list} of several such models that should all be combined.}
 
-\item{res2}{list; if \code{res} is a single model output, \code{res2} is the other model output that should be combined with the first.}
+\item{res2}{list; if \code{res} is a single model output, \code{res2} is
+the other model output that should be combined with the first.}
 }
 \value{
-Returns a \code{list} of the \code{class} of the combined model output.
+Returns a \code{list} of the \code{class} of the combined model
+  output. \code{reps} is the total across runs, and \code{null_dist}
+  holds every run's permutation draws stacked, so \code{confint()} on the
+  result uses all of them.
 }
 \description{
-The function combines multiple outputs of \code{QAPglm()} or \code{QAPcss()} estimated on the same data with the same predictors. Models are weighted by \code{reps} when combining, thus, \code{reps} does not need to be the same for all models in \code{res} and \code{res2}.
+Pools several runs of the SAME model on the SAME data -- for example two
+runs of 500 permutations each, giving a 1000-permutation result. Runs are
+weighted by how many permutations actually contributed, so they need not
+all use the same number. For a model fitted with \code{comparison=}, each
+comparison is pooled separately and all of them are kept.
+}
+\section{What must match}{
+
+Pooling is only meaningful for repeated runs of one model on one dataset,
+so the runs are checked before they are combined: the class, the null
+hypothesis, the family, the estimator, the outcome mode, the diagonal and
+data-shape flags, the comparisons, the coefficient names, and the
+coefficients themselves. The baseline fit does not depend on the
+permutations, so identical data implies identical coefficients -- and
+coefficients that differ prove the runs are not poolable, whatever their
+settings say.
+}
+
+\examples{
+set.seed(1)
+n  <- 10
+x1 <- matrix(rnorm(n^2), n, n)
+d  <- list(y = 0.5 * x1 + matrix(rnorm(n^2), n, n), x1 = x1)
+
+# Two independent runs of 25 permutations...
+a <- QAP(y ~ x1, data = d, reps = 25, seed = 1)
+b <- QAP(y ~ x1, data = d, reps = 25, seed = 2)
+
+# ...pooled into a single 50-permutation result.
+ab <- combine_qap_estimates(a, b)
+ab$reps
 }

@@ -1,4 +1,4 @@
-#' Internal auxiliary function to print QAPcss() coefficient tables
+#' Internal auxiliary function to print QAP() coefficient tables
 #'
 #' @param x An object of class \code{QAPCSS}.
 #' @param comp Character or NULL; name of comparison to print.

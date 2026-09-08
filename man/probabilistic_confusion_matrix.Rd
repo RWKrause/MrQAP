@@ -44,3 +44,9 @@ draws from the Bernoulli distribution implied by each predicted probability,
 producing a confusion matrix that properly accounts for prediction
 uncertainty.
 }
+\examples{
+set.seed(1)
+p <- runif(200)
+y <- rbinom(200, 1, p)
+probabilistic_confusion_matrix(y, p, n_draws = 200, seed = 1)
+}

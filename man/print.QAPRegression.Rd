@@ -2,7 +2,7 @@
 % Please edit documentation in R/print.QAPRegression.R
 \name{print.QAPRegression}
 \alias{print.QAPRegression}
-\title{Print QAPglm() results for linear regression}
+\title{Print QAP() results for linear regression}
 \usage{
 \method{print}{QAPRegression}(x, ..., print_b = FALSE, print_random = FALSE)
 }
@@ -19,5 +19,5 @@
 Invisibly returns \code{x}.
 }
 \description{
-Print QAPglm() results for linear regression
+Print QAP() results for linear regression
 }

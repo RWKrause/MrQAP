@@ -2,7 +2,7 @@
 % Please edit documentation in R/glm_tab.R
 \name{glm_tab}
 \alias{glm_tab}
-\title{Internal auxiliary function to print QAPcss() coefficient tables}
+\title{Internal auxiliary function to print QAP() coefficient tables}
 \usage{
 glm_tab(x, comp)
 }
@@ -15,6 +15,6 @@ glm_tab(x, comp)
 Prints the results table.
 }
 \description{
-Internal auxiliary function to print QAPcss() coefficient tables
+Internal auxiliary function to print QAP() coefficient tables
 }
 \keyword{internal}
