@@ -329,6 +329,7 @@ summary.QAP <- function(object, ...) {
     multi_mode    = isTRUE(object$multi_mode),
     grouped       = !is.null(object$groups),
     robust_se     = isTRUE(object$robust_se),
+    vcov_spec     = object$vcov_spec,
     estimator     = object$estimator,
     random        = object$random,
     comp          = object$comp,
@@ -377,14 +378,21 @@ print.summary.QAP <- function(x, digits = max(3L, getOption("digits") - 3L),
       ")\n", sep = "")
   if (x$grouped)
     cat("Permutation: restricted to within groups\n")
-  if (x$robust_se)
+  if (!is.null(x$vcov_spec))
+    cat("Std. errors: fixest vcov = ", format_vcov_spec(x$vcov_spec), "\n",
+        sep = "")
+  else if (x$robust_se)
     cat("Std. errors: heteroskedasticity-consistent\n")
   if (!is.na(x$nobs))
     cat("Observations:", format(x$nobs), "\n")
 
-  if (!is.null(x$r.squared))
+  if (!is.null(x$r.squared) && !is.na(x$r.squared))
     cat("\nR-squared: ", format(round(x$r.squared, 4)),
-        "   Adjusted: ", format(round(x$adj.r.squared, 4)), "\n", sep = "")
+        # An absorbed-FE fit has no adjusted R-squared to report; printing
+        # "Adjusted: NA" reads as a failure rather than as not applicable.
+        if (!is.null(x$adj.r.squared) && !is.na(x$adj.r.squared))
+          paste0("   Adjusted: ", format(round(x$adj.r.squared, 4))),
+        "\n", sep = "")
   if (!is.null(x$theta))
     cat("\nNegative binomial dispersion (theta): ",
         format(round(x$theta, 4)), "\n", sep = "")

@@ -16,7 +16,8 @@ qap_fit_baseline(
   main_vars,
   has_random,
   reference,
-  comparison
+  comparison,
+  fixest_vcov = NULL
 )
 }
 \arguments{
@@ -43,6 +44,11 @@ qap_fit_baseline(
 \item{reference}{Reference category for multinomial.}
 
 \item{comparison}{Comparison list or NULL.}
+
+\item{fixest_vcov}{\code{vcov} specification handed to
+\code{fixest::feglm()}.  Mutually exclusive with
+\code{fixest_se_cluster}, which \pkg{fixest} itself rejects when both
+are supplied.}
 }
 \value{
 A fit list, or a named list of them when comparisons are used.

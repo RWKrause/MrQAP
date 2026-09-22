@@ -6,18 +6,29 @@
 #'
 #' @param formula A formula object.
 #' @param fixest_se_cluster Optional cluster variable name for fixest.
+#' @param fixest_vcov Optional \code{vcov} specification for fixest.  Like
+#'   \code{fixest_se_cluster}, asking for one routes the fit through
+#'   \pkg{fixest} even when the formula has no \code{|} fixed effects.  When
+#'   it is a formula (\code{~g}, \code{NW(2) ~ id + period}) the variables
+#'   it names are added to \code{all_data_vars} so they are carried into the
+#'   vectorised data.
 #'
 #' @return A list with components: \code{dependent}, \code{main},
-#'   \code{fixed_effects}, \code{has_random}, \code{use_fixest},
-#'   \code{all_data_vars}.
+#'   \code{fixed_effects}, \code{has_random}, \code{random_terms},
+#'   \code{use_fixest}, \code{all_data_vars}.  \code{random_terms} holds the
+#'   lme4-style terms the user wrote, as strings such as \code{"(1 | sv)"},
+#'   and is empty for every other formula shape.
 #' @keywords internal
 
-parse_qap_formula <- function(formula, fixest_se_cluster = NULL) {
+parse_qap_formula <- function(formula, fixest_se_cluster = NULL,
+                              fixest_vcov = NULL) {
   dependent <- all.vars(formula)[1]
 
   formula_str <- paste(deparse(formula, width.cutoff = 500), collapse = " ")
   has_pipe  <- grepl("\\|", formula_str)
   has_paren <- grepl("\\(", formula_str)
+
+  random_terms <- character(0)
 
   if (has_pipe && has_paren) {
     # lme4-style random effects: y ~ x1 + x2 + (1|sv) + (1|rv)
@@ -25,7 +36,23 @@ parse_qap_formula <- function(formula, fixest_se_cluster = NULL) {
     fixed_effects <- NULL
     use_fixest    <- FALSE
     has_random    <- TRUE
-    all_data_vars <- main
+
+    # The random terms are returned so the qapspp residualisation can be
+    # given the same random structure as the model. findbars() is only
+    # called on this branch: on a fixest formula it reads the whole of
+    # "x1 + x2 | fe" as one bar.
+    bars <- reformulas::findbars(formula)
+    random_terms <- vapply(bars, function(b) {
+      paste0("(", paste(deparse(b, width.cutoff = 500), collapse = " "), ")")
+    }, character(1))
+
+    # A grouping variable is data like any other. Leaving it out meant a
+    # user-named group -- (1|myattr) rather than one of the structural
+    # sv/rv/nv/pv -- never reached the model frame, and the fit failed with
+    # "object 'myattr' not found". Structural names are dropped again by
+    # the intersect() against names(data) in QAP(), which is where they are
+    # generated rather than supplied.
+    all_data_vars <- unique(c(main, unlist(lapply(bars, all.vars))))
   } else if (has_pipe && !has_paren) {
     # fixest-style fixed effects: y ~ x1 + x2 | fe1 + fe2
     main          <- all.vars(formula[[3]][[2]])
@@ -37,7 +64,7 @@ parse_qap_formula <- function(formula, fixest_se_cluster = NULL) {
     main          <- all.vars(formula[-1])
     fixed_effects <- NULL
     has_random    <- FALSE
-    use_fixest    <- !is.null(fixest_se_cluster)
+    use_fixest    <- !is.null(fixest_se_cluster) || !is.null(fixest_vcov)
     all_data_vars <- main
   }
 
@@ -48,10 +75,23 @@ parse_qap_formula <- function(formula, fixest_se_cluster = NULL) {
     }
   }
 
+  if (!is.null(fixest_vcov)) {
+    use_fixest <- TRUE
+    # A vcov formula names the variables it clusters (or averages) over, and
+    # those have to reach the model frame like any other data variable. The
+    # left-hand side of NW(2) ~ id + period names no variables, so all.vars()
+    # on the whole formula is the right thing.
+    if (inherits(fixest_vcov, "formula")) {
+      vv <- setdiff(all.vars(fixest_vcov), all_data_vars)
+      all_data_vars <- c(all_data_vars, vv)
+    }
+  }
+
   list(dependent     = dependent,
        main          = main,
        fixed_effects = fixed_effects,
        has_random    = has_random,
+       random_terms  = random_terms,
        use_fixest    = use_fixest,
        all_data_vars = all_data_vars)
 }
@@ -67,6 +107,12 @@ parse_qap_formula <- function(formula, fixest_se_cluster = NULL) {
 #' @param ris Logical; random intercept for senders.
 #' @param rir Logical; random intercept for receivers.
 #' @param rip Logical; random intercept for perceivers (CSS only).
+#' @param existing_terms Character; random terms the user already wrote into
+#'   \code{formula}, as returned by \code{parse_qap_formula()}.  A flag whose
+#'   term is already there adds nothing, so the two sources cannot produce
+#'   the same grouping twice.  Passed in rather than re-derived, because
+#'   \code{findbars()} is not safe on a fixest formula and this function is
+#'   called before the formula shape has been resolved.
 #'
 #' @return An updated formula.
 #' @keywords internal
@@ -75,13 +121,18 @@ build_internal_formula <- function(formula,
                                    rin = FALSE,
                                    ris = FALSE,
                                    rir = FALSE,
-                                   rip = FALSE) {
+                                   rip = FALSE,
+                                   existing_terms = character(0)) {
   mod_str <- paste(deparse(formula, width.cutoff = 500), collapse = " ")
+  # lme4 accepts (1|sv) twice without complaint, but then fits two variance
+  # components for one grouping -- not the model either source asked for.
+  have <- gsub("[[:space:]]", "", existing_terms)
+  add  <- function(term) !(gsub("[[:space:]]", "", term) %in% have)
   rand_int <- ""
-  if (rin) rand_int <- paste(rand_int, "+ (1|nv)")
-  if (ris) rand_int <- paste(rand_int, "+ (1|sv)")
-  if (rir) rand_int <- paste(rand_int, "+ (1|rv)")
-  if (rip) rand_int <- paste(rand_int, "+ (1|pv)")
+  if (rin && add("(1|nv)")) rand_int <- paste(rand_int, "+ (1|nv)")
+  if (ris && add("(1|sv)")) rand_int <- paste(rand_int, "+ (1|sv)")
+  if (rir && add("(1|rv)")) rand_int <- paste(rand_int, "+ (1|rv)")
+  if (rip && add("(1|pv)")) rand_int <- paste(rand_int, "+ (1|pv)")
   if (nchar(trimws(rand_int)) > 0) {
     as.formula(paste(mod_str, rand_int))
   } else {
@@ -145,6 +196,27 @@ resolve_robust_errors <- function(use_robust_errors, family, estimator,
   }
 
   TRUE
+}
+
+
+#' Describe a fixest vcov specification in one line
+#'
+#' The spec can be a name, a formula or a function; \code{print()} and
+#' \code{summary()} need a short label for whichever it is.
+#'
+#' @param spec A fixest \code{vcov} specification, or \code{NULL}.
+#'
+#' @return A length-1 character label, or \code{NULL} when \code{spec} is
+#'   \code{NULL}.
+#' @keywords internal
+
+format_vcov_spec <- function(spec) {
+  if (is.null(spec)) return(NULL)
+  if (is.character(spec)) return(spec)
+  if (inherits(spec, "formula"))
+    return(paste(deparse(spec, width.cutoff = 500), collapse = " "))
+  if (is.function(spec)) return("<function>")
+  paste(class(spec)[1])
 }
 
 
@@ -250,6 +322,10 @@ robust_se <- function(base_model, X = NULL, resid = NULL) {
 #' @param estimator \code{"standard"} or \code{"gmm"}.
 #' @param use_fixest Logical; use fixest::feglm.
 #' @param fixest_se_cluster Cluster variable name for fixest.
+#' @param fixest_vcov \code{vcov} specification handed to
+#'   \code{fixest::feglm()}.  Mutually exclusive with
+#'   \code{fixest_se_cluster}, which \pkg{fixest} itself rejects when both
+#'   are supplied.
 #' @param use_robust_errors Logical; use HC3 correction.
 #' @param main_vars Character vector of main predictor names.
 #' @param has_random Logical; any random effects?
@@ -267,6 +343,7 @@ fit_qap_model <- function(mod, pred, family,
                           estimator        = "standard",
                           use_fixest       = FALSE,
                           fixest_se_cluster = NULL,
+                          fixest_vcov      = NULL,
                           use_robust_errors = FALSE,
                           main_vars        = NULL,
                           has_random       = FALSE,
@@ -418,20 +495,45 @@ fit_qap_model <- function(mod, pred, family,
   if (!has_random) {
     if (use_fixest) {
       if (!requireNamespace("fixest", quietly = TRUE))
-        stop("Package 'fixest' is required when fixest_se_cluster or fixed effects with | ")
+        stop("Package 'fixest' is required for fixed effects given with |, ",
+             "and for fixest_se_cluster or vcov.")
       fe_family <- if (family == "negbin") "negbin" else family
+      # fixest rejects vcov and cluster together ("You cannot use the argument
+      # 'vcov' in combination with 'cluster'"), so only one is ever passed.
+      # cluster = NULL is what feglm defaults to anyway, so the no-cluster
+      # call is identical to omitting the argument.
+      fe_se_arg <- if (!is.null(fixest_vcov)) {
+        list(vcov = fixest_vcov)
+      } else {
+        list(cluster = fixest_se_cluster)
+      }
       base_model <- do.call(fixest::feglm,
-                            c(list(mod, data = pred, family = fe_family,
-                                   cluster = fixest_se_cluster), wo))
-      fit$coefficients <- c("(Intercept)" = NA, base_model$coefficients)
+                            c(list(mod, data = pred, family = fe_family),
+                              fe_se_arg, wo))
+      # An absorbed intercept is not reported by feglm(), and the NA
+      # placeholder keeps the coefficient vector the same shape as every
+      # other estimator's. But a fixest fit reached through vcov= alone has
+      # no fixed effects to absorb it, so it estimates a real intercept and
+      # the placeholder would duplicate the row.
+      fit$coefficients <- if ("(Intercept)" %in% names(base_model$coefficients))
+        base_model$coefficients
+      else
+        c("(Intercept)" = NA, base_model$coefficients)
 
       # fixest computes its own heteroskedasticity-robust vcov on the demeaned
       # design.  Recomputing HC3 from pred[, main_vars] would use leverages
       # from a design matrix that excludes the absorbed fixed effects.
-      fe_vcov <- if (use_robust_errors) {
-        vcov(base_model, vcov = "hetero")
+      #
+      # An explicit vcov was already handed to feglm(), so it is the fit's
+      # own vcov and is read straight back off it -- that also makes
+      # summary(fit$simple_fit) report the standard errors the user asked
+      # for, rather than a default it never used.
+      fe_vcov <- if (!is.null(fixest_vcov)) {
+        stats::vcov(base_model)
+      } else if (use_robust_errors) {
+        stats::vcov(base_model, vcov = "hetero")
       } else {
-        vcov(base_model)
+        stats::vcov(base_model)
       }
       fe_se <- sqrt(diag(fe_vcov))
       fit$t <- align_to_coefs(base_model$coefficients / fe_se,
@@ -440,8 +542,16 @@ fit_qap_model <- function(mod, pred, family,
       if (baseline && family == "gaussian") {
         r2s <- tryCatch(fixest::r2(base_model), error = function(e) NULL)
         if (!is.null(r2s)) {
-          fit$r.squared     <- r2s[["r2"]]
-          fit$adj.r.squared <- r2s[["ar2"]]
+          # feglm() reports the pseudo-R-squareds and leaves r2/ar2 at NA
+          # even for the gaussian family, so reading them straight off gave
+          # every fixest fit an R-squared of NA. cor2 -- the squared
+          # correlation between outcome and fitted values, which fixest
+          # itself prints as "Squared Cor." -- is exactly what lm() calls
+          # R-squared when the model has an intercept and absorbs nothing.
+          pick <- function(nm)
+            if (nm %in% names(r2s)) as.numeric(r2s[[nm]]) else NA_real_
+          fit$r.squared <- if (!is.na(pick("r2"))) pick("r2") else pick("cor2")
+          fit$adj.r.squared <- pick("ar2")
         }
       }
     } else {
@@ -1097,6 +1207,7 @@ residuals_to_array <- function(xR, original_array, valid, pred,
 #' @param estimator Character; "standard" or "gmm".
 #' @param use_fixest Logical.
 #' @param fixest_se_cluster Character or NULL.
+#' @param fixest_vcov fixest \code{vcov} specification, or NULL.
 #' @param main_vars Character vector.
 #' @param reference Character or NULL.
 #'
@@ -1113,6 +1224,7 @@ fit_base <- function(mod,
                      estimator    = "standard",
                      use_fixest   = FALSE,
                      fixest_se_cluster = NULL,
+                     fixest_vcov  = NULL,
                      main_vars    = NULL,
                      reference    = NULL) {
 
@@ -1132,6 +1244,7 @@ fit_base <- function(mod,
                 estimator    = estimator,
                 use_fixest   = use_fixest,
                 fixest_se_cluster = fixest_se_cluster,
+                fixest_vcov  = fixest_vcov,
                 use_robust_errors = use_robust_errors,
                 main_vars    = main_vars,
                 has_random   = rand,

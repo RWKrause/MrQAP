@@ -178,7 +178,7 @@ qap_cpu_perms <- function(data, parsed, mode, diag, groups, reps, base_fit,
                           large, rand_part, mod, family, estimator,
                           use_fixest, fixest_se_cluster, use_robust_errors,
                           has_random, comparison, reference, ncores, css,
-                          multi_mode = FALSE) {
+                          multi_mode = FALSE, fixest_vcov = NULL) {
 
   # Only touch the future plan when the caller asked for a core count;
   # otherwise leave whatever plan they set in place.
@@ -197,6 +197,7 @@ qap_cpu_perms <- function(data, parsed, mode, diag, groups, reps, base_fit,
          diag. = diag, mod. = mod, groups. = groups, fit. = base_fit,
          family. = family, estimator. = estimator, use_fixest. = use_fixest,
          fixest_se_cluster. = fixest_se_cluster,
+         fixest_vcov. = fixest_vcov,
          use_robust_errors. = use_robust_errors, has_random. = has_random,
          main_vars. = main, data_vars. = data_vars, parsed. = parsed,
          comp. = comparison, reference. = reference, css. = css,

@@ -79,6 +79,7 @@ test_that("gmm_start survives a degenerate design", {
 
 test_that("deterministic starts make GMM estimates start-independent", {
   skip_if_not_installed("gmm")
+  skip_on_cran()
   # On a wider-scaled design the moment conditions have several local
   # optima. Random starting values landed on different ones, putting noise
   # of the same magnitude as the estimate into the null distribution. This
@@ -143,6 +144,7 @@ for (fam in gmm_families) {
 
     test_that(paste0("GMM is reproducible from a seed (", family, ")"), {
       skip_if_not_installed("gmm")
+      skip_on_cran()
       d   <- make_gmm_family(family)
       run <- function() gmm_fit(y ~ x1 + x2, data = d, family = family,
                                 estimator = "gmm", nullhyp = "qapy",
@@ -158,6 +160,7 @@ for (fam in gmm_families) {
     test_that(paste0("GMM separates a real effect from a null one (",
                      family, ")"), {
       skip_if_not_installed("gmm")
+      skip_on_cran()
       d   <- make_gmm_family(family)
       fit <- gmm_fit(y ~ x1 + x3, data = d, family = family,
                      estimator = "gmm", nullhyp = "qapy", reps = 100,
@@ -168,6 +171,7 @@ for (fam in gmm_families) {
 
     test_that(paste0("GMM runs under qapspp (", family, ")"), {
       skip_if_not_installed("gmm")
+      skip_on_cran()
       d   <- make_gmm_family(family)
       fit <- gmm_fit(y ~ x1 + x2, data = d, family = family,
                      estimator = "gmm", nullhyp = "qapspp", reps = 15,

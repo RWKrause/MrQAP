@@ -23,6 +23,7 @@
 #' @param estimator. Estimator type.
 #' @param use_fixest. Logical.
 #' @param fixest_se_cluster. Cluster variable or NULL.
+#' @param fixest_vcov. fixest \code{vcov} specification, or NULL.
 #' @param use_robust_errors. Logical.
 #' @param has_random. Logical.
 #' @param main_vars. Character vector of main predictor names.
@@ -57,7 +58,8 @@ QAPPermEst <- function(i,
                        comp.,
                        reference.,
                        css. = FALSE,
-                       multi_mode. = FALSE) {
+                       multi_mode. = FALSE,
+                       fixest_vcov. = NULL) {
 
   dep   <- parsed.$dependent
   large <- is.list(data.[[dep]])
@@ -168,15 +170,21 @@ QAPPermEst <- function(i,
   if (!sufficient) return(NULL)
 
   fit_one <- function(p) {
-    tryCatch(
+    # Per-permutation convergence chatter -- lme4's "boundary (singular)
+    # fit" above all -- says nothing the user can act on: these are refits
+    # of relabelled data, not the model being reported, and there are
+    # reps * n_predictors of them. The baseline fit is not wrapped, so its
+    # diagnostics still reach the user.
+    suppressMessages(tryCatch(
       fit_qap_model(mod = mod., pred = p, family = family.,
                     estimator = estimator., use_fixest = use_fixest.,
                     fixest_se_cluster = fixest_se_cluster.,
+                    fixest_vcov = fixest_vcov.,
                     use_robust_errors = use_robust_errors.,
                     main_vars = main_vars., has_random = has_random.,
                     reference = reference.),
       error = function(e) NULL
-    )
+    ))
   }
 
   xi_arg <- perm_var.

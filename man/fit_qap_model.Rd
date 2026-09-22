@@ -11,6 +11,7 @@ fit_qap_model(
   estimator = "standard",
   use_fixest = FALSE,
   fixest_se_cluster = NULL,
+  fixest_vcov = NULL,
   use_robust_errors = FALSE,
   main_vars = NULL,
   has_random = FALSE,
@@ -30,6 +31,11 @@ fit_qap_model(
 \item{use_fixest}{Logical; use fixest::feglm.}
 
 \item{fixest_se_cluster}{Cluster variable name for fixest.}
+
+\item{fixest_vcov}{\code{vcov} specification handed to
+\code{fixest::feglm()}.  Mutually exclusive with
+\code{fixest_se_cluster}, which \pkg{fixest} itself rejects when both
+are supplied.}
 
 \item{use_robust_errors}{Logical; use HC3 correction.}
 

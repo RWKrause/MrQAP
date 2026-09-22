@@ -15,3 +15,4 @@ residuals of the gmm()
 \description{
 Getting residuals for gmm poisson
 }
+\keyword{internal}

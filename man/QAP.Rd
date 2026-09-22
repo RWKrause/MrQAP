@@ -17,6 +17,7 @@ QAP(
   groups = NULL,
   ncores = NULL,
   fixest_se_cluster = NULL,
+  vcov = NULL,
   comparison = NULL,
   reference = NULL,
   random_intercept_nets = FALSE,
@@ -39,11 +40,22 @@ QAP(
 }
 \arguments{
 \item{formula}{A formula describing the model.
-The left-hand side is the dependent variable name in \code{data};
-the right-hand side lists predictor variable names.
-Use \code{|} (without parentheses) for fixest fixed effects:
-\code{y ~ x1 + x2 | fe1}.
-Use \code{(1|var)} for lme4-style random effects: \code{y ~ x1 + (1|sv)}.}
+  The left-hand side is the dependent variable name in \code{data};
+  the right-hand side lists predictor variable names.
+  Use \code{|} (without parentheses) for fixest fixed effects:
+  \code{y ~ x1 + x2 | fe1}.
+  Use \code{(1|var)} for lme4-style random effects: \code{y ~ x1 + (1|sv)}.
+  \code{var} may be one of the structural indices \code{sv}, \code{rv},
+  \code{nv} and \code{pv}, which are generated for you, or any grouping
+  variable of your own in \code{data}.
+
+  Predictors must be plain variables from \code{data}. Interactions
+  between them are fine -- \code{y ~ x1 * x2} adds \code{x1:x2} to the
+  model while still permuting \code{x1} and \code{x2} themselves -- but a
+  transformed term such as \code{log(x1)} is rejected, because everything
+  downstream identifies a predictor by the name of the matrix it came
+  from.  Compute the transformed matrix yourself and pass it in
+  \code{data} as its own variable.}
 
 \item{data}{Named list.  Each element is either a square \code{matrix}
   (network data) or a cubic \code{array} (CSS data), or a \code{list} of
@@ -92,7 +104,32 @@ permutation to occur only within groups.}
 \code{future} framework.  When \code{NULL} the active \code{future}
 plan is used unchanged.}
 
-\item{fixest_se_cluster}{Character; cluster variable for fixest.}
+\item{fixest_se_cluster}{Character; cluster variable for fixest.  A
+shorthand for \code{vcov = ~cluster_var}; the two cannot both be given,
+because \pkg{fixest} itself rejects that combination.}
+
+\item{vcov}{The variance-covariance specification handed straight to
+  \code{fixest::feglm()}, so anything \pkg{fixest} accepts works here:
+  a name (\code{"iid"}, \code{"hetero"}, \code{"cluster"},
+  \code{"twoway"}, \code{"NW"}, \code{"DK"}, \code{"conley"}), a formula
+  naming the dimensions (\code{~sv}, \code{~sv + rv},
+  \code{NW(2) ~ id + period}), or a vcov function.  Variables named in a
+  formula are looked up in \code{data} like any other variable, so
+  \code{~sv} clusters on the sender index.
+
+  Asking for a \code{vcov} routes the fit through \code{fixest::feglm()}
+  even when the formula has no \code{|} fixed effects, which is how you
+  get fixest's standard errors on a model that does not absorb anything.
+  It takes precedence over \code{use_robust_errors}, and the requested
+  errors are the ones the permutation t-values are built from, not just a
+  relabelling of the baseline fit.  \code{NULL} (default) leaves
+  \pkg{fixest} at its own default, which for \code{feglm()} is IID.
+
+  Note that even \code{vcov = "iid"} will not reproduce \code{lm()} to the
+  last digit: \code{feglm()} is a maximum-likelihood fit and applies its
+  own dispersion and degrees-of-freedom correction, so its standard errors
+  differ slightly from the ordinary least-squares ones.  The difference is
+  the estimator's, not an error.}
 
 \item{comparison}{Named list of length-2 character vectors specifying
 category comparisons, e.g. \code{list(commission =

@@ -37,9 +37,12 @@ print.QAPRegression <- function(x, ...,
   }
   cat("The outcome was treated as", format(paste0(x$mode, ".")), "\n")
 
-  if (!is.null(x$r.squared)) {
+  if (!is.null(x$r.squared) && !is.na(x$r.squared)) {
     cat("\nR-squared:    ", format(round(x$r.squared, 4)))
-    cat("\nAdj R-squared:", format(round(x$adj.r.squared, 4)), "\n")
+    # Not reported for an absorbed-FE fit; see print.summary.QAP().
+    if (!is.null(x$adj.r.squared) && !is.na(x$adj.r.squared))
+      cat("\nAdj R-squared:", format(round(x$adj.r.squared, 4)))
+    cat("\n")
   }
 
   cat("\nCoefficients:\n")

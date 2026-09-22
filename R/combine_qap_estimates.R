@@ -69,7 +69,7 @@ combine_qap_estimates <- function(res, res2 = NULL) {
   # A mismatch here means the p-values being averaged answer different
   # questions, which no amount of weighting can reconcile.
   settings <- c("nullhyp", "family", "estimator", "mode", "diag",
-                "css", "multi_mode", "robust_se", "reference")
+                "css", "multi_mode", "robust_se", "vcov_spec", "reference")
 
   for (i in seq_len(n_res)[-1]) {
     ri <- res[[i]]
@@ -78,9 +78,17 @@ combine_qap_estimates <- function(res, res2 = NULL) {
       stop("All models must be of the same class; model ", i, " is a '",
            class(ri)[1], "' but model 1 is a '", class(return_res)[1], "'.")
 
+    # A vcov formula carries the environment it was written in, so two runs
+    # that both asked for ~sv are not identical() if the calls were made
+    # from different frames. Compare what the specification says, not the
+    # object it is.
+    norm <- function(s, v) if (s == "vcov_spec") format_vcov_spec(v) else v
+
     for (s in settings) {
-      if (!identical(ri[[s]], return_res[[s]])) {
-        shown <- function(v) if (is.null(v)) "NULL" else format(v)
+      if (!identical(norm(s, ri[[s]]), norm(s, return_res[[s]]))) {
+        shown <- function(v) {
+          if (is.null(v)) "NULL" else paste(format(v), collapse = " ")
+        }
         stop("All models must be fitted with the same ", s, "; model ", i,
              " used '", shown(ri[[s]]), "' but model 1 used '",
              shown(return_res[[s]]), "'.")

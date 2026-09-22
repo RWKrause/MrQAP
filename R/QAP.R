@@ -11,6 +11,17 @@
 #'   Use \code{|} (without parentheses) for fixest fixed effects:
 #'   \code{y ~ x1 + x2 | fe1}.
 #'   Use \code{(1|var)} for lme4-style random effects: \code{y ~ x1 + (1|sv)}.
+#'   \code{var} may be one of the structural indices \code{sv}, \code{rv},
+#'   \code{nv} and \code{pv}, which are generated for you, or any grouping
+#'   variable of your own in \code{data}.
+#'
+#'   Predictors must be plain variables from \code{data}. Interactions
+#'   between them are fine -- \code{y ~ x1 * x2} adds \code{x1:x2} to the
+#'   model while still permuting \code{x1} and \code{x2} themselves -- but a
+#'   transformed term such as \code{log(x1)} is rejected, because everything
+#'   downstream identifies a predictor by the name of the matrix it came
+#'   from.  Compute the transformed matrix yourself and pass it in
+#'   \code{data} as its own variable.
 #'
 #' @param data Named list.  Each element is either a square \code{matrix}
 #'   (network data) or a cubic \code{array} (CSS data), or a \code{list} of
@@ -55,7 +66,32 @@
 #' @param ncores Integer; number of cores for parallel processing via the
 #'   \code{future} framework.  When \code{NULL} the active \code{future}
 #'   plan is used unchanged.
-#' @param fixest_se_cluster Character; cluster variable for fixest.
+#' @param fixest_se_cluster Character; cluster variable for fixest.  A
+#'   shorthand for \code{vcov = ~cluster_var}; the two cannot both be given,
+#'   because \pkg{fixest} itself rejects that combination.
+#'
+#' @param vcov The variance-covariance specification handed straight to
+#'   \code{fixest::feglm()}, so anything \pkg{fixest} accepts works here:
+#'   a name (\code{"iid"}, \code{"hetero"}, \code{"cluster"},
+#'   \code{"twoway"}, \code{"NW"}, \code{"DK"}, \code{"conley"}), a formula
+#'   naming the dimensions (\code{~sv}, \code{~sv + rv},
+#'   \code{NW(2) ~ id + period}), or a vcov function.  Variables named in a
+#'   formula are looked up in \code{data} like any other variable, so
+#'   \code{~sv} clusters on the sender index.
+#'
+#'   Asking for a \code{vcov} routes the fit through \code{fixest::feglm()}
+#'   even when the formula has no \code{|} fixed effects, which is how you
+#'   get fixest's standard errors on a model that does not absorb anything.
+#'   It takes precedence over \code{use_robust_errors}, and the requested
+#'   errors are the ones the permutation t-values are built from, not just a
+#'   relabelling of the baseline fit.  \code{NULL} (default) leaves
+#'   \pkg{fixest} at its own default, which for \code{feglm()} is IID.
+#'
+#'   Note that even \code{vcov = "iid"} will not reproduce \code{lm()} to the
+#'   last digit: \code{feglm()} is a maximum-likelihood fit and applies its
+#'   own dispersion and degrees-of-freedom correction, so its standard errors
+#'   differ slightly from the ordinary least-squares ones.  The difference is
+#'   the estimator's, not an error.
 #'
 #' @param comparison Named list of length-2 character vectors specifying
 #'   category comparisons, e.g. \code{list(commission =
@@ -176,6 +212,7 @@ QAP <- function(formula,
                 groups    = NULL,
                 ncores    = NULL,
                 fixest_se_cluster = NULL,
+                vcov      = NULL,
                 comparison = NULL,
                 reference  = NULL,
                 random_intercept_nets       = FALSE,
@@ -220,8 +257,24 @@ QAP <- function(formula,
                           mode = mode, diag = diag, multi_mode = multi_mode,
                           attr = edge_attr)
 
+  # --- fixest standard-error specification -----------------------------
+  # fixest::feglm() refuses vcov and cluster together, so the clash is
+  # caught here with a message that names this package's arguments rather
+  # than fixest's.
+  if (!is.null(vcov)) {
+    if (!is.null(fixest_se_cluster))
+      stop("Give either vcov or fixest_se_cluster, not both: ",
+           "fixest_se_cluster = \"g\" is the same request as vcov = ~g.")
+    if (!(is.character(vcov) || inherits(vcov, "formula") ||
+          is.function(vcov)))
+      stop("vcov must be a character name (e.g. \"hetero\"), a formula ",
+           "(e.g. ~sv), or a vcov function; got ", class(vcov)[1], ".")
+    if (is.character(vcov) && length(vcov) != 1L)
+      stop("vcov must be a single character string, not ", length(vcov), ".")
+  }
+
   # --- parse formula ---
-  parsed    <- parse_qap_formula(formula, fixest_se_cluster)
+  parsed    <- parse_qap_formula(formula, fixest_se_cluster, vcov)
   dep       <- parsed$dependent
   main      <- parsed$main
   # Structural vars (sv, rv, nv, pv) are auto-generated, not user data.
@@ -230,6 +283,29 @@ QAP <- function(formula,
 
   if (!(dep %in% names(data)))
     stop("Dependent variable '", dep, "' not found in data.")
+
+  # Every downstream step -- residualising a predictor, permuting it, mapping
+  # a coefficient back to the variable it came from -- keys on a predictor
+  # being a plain column of the vectorised data. A transformed term is named
+  # log(x1) in the model but x1 in the data and the two never line up, which
+  # surfaced far from the cause as a subscript error inside the permutation
+  # loop. Interactions of plain variables are fine: x1 * x2 adds the term
+  # x1:x2 to the model matrix while still permuting x1 and x2 themselves.
+  if (is.null(parsed$fixed_effects)) {
+    labs <- tryCatch(
+      attr(stats::terms(reformulas::nobars(formula)), "term.labels"),
+      error = function(e) NULL)
+    if (!is.null(labs)) {
+      parts <- unique(unlist(strsplit(labs, ":", fixed = TRUE)))
+      bad   <- setdiff(parts, main)
+      if (length(bad))
+        stop("Predictors must be plain variables from `data`: ",
+             paste0("'", bad, "'", collapse = ", "),
+             if (length(bad) == 1L) " is not one." else " are not.",
+             " Compute the transformed matrix yourself and pass it in ",
+             "`data` as its own variable.")
+    }
+  }
 
   # --- matrix or CSS? ---
   css <- detect_css(data[[dep]], css = css, dep = dep)
@@ -283,15 +359,33 @@ QAP <- function(formula,
 
   # --- internal formula ---
   mod     <- build_internal_formula(formula, rin = rin, ris = ris,
-                                    rir = rir, rip = rip)
+                                    rir = rir, rip = rip,
+                                    existing_terms = parsed$random_terms)
   mod_str <- paste(deparse(mod, width.cutoff = 500), collapse = " ")
-  has_random <- grepl("\\(", mod_str) || parsed$has_random
+  # Random effects come from the four flags or from bars the user wrote, and
+  # from nowhere else. This used to test the formula string for "(", which
+  # any transformed predictor also satisfies: y ~ log(x1) + x2 was treated as
+  # a mixed model and sent to lmer() with nothing to group on.
+  has_random <- rin || ris || rir || rip || parsed$has_random
   if (family == "multinom") has_random <- FALSE
   use_fixest <- parsed$use_fixest
   if (has_random && use_fixest) {
     warning("Cannot combine fixest FE and lme4 random effects. ",
-            "Using lme4 random effects only.")
+            "Using lme4 random effects only.",
+            if (!is.null(vcov))
+              " vcov is a fixest argument and is ignored as well.")
     use_fixest <- FALSE
+    # Nothing downstream can honour it once feglm() is out of the picture,
+    # and leaving it set would make the fit claim standard errors it never
+    # computed.
+    vcov <- NULL
+  }
+
+  if (!is.null(vcov) && isTRUE(use_robust_errors)) {
+    warning("Both vcov and use_robust_errors were given; vcov takes ",
+            "precedence. Use vcov = \"hetero\" for fixest's ",
+            "heteroskedasticity-consistent errors.")
+    use_robust_errors <- FALSE
   }
   mod <- as.formula(mod_str)
   if (family == "multinom" && parsed$has_random) {
@@ -302,12 +396,22 @@ QAP <- function(formula,
   use_robust_errors <- resolve_robust_errors(use_robust_errors, family,
                                              estimator, has_random)
 
-  # Random-effect suffix used when residualising for qapspp.
-  rand_part <- ""
-  if (rin) rand_part <- paste(rand_part, "+ (1|nv)")
-  if (rip) rand_part <- paste(rand_part, "+ (1|pv)")
-  if (ris) rand_part <- paste(rand_part, "+ (1|sv)")
-  if (rir) rand_part <- paste(rand_part, "+ (1|rv)")
+  # Random-effect suffix used when residualising for qapspp. It must carry
+  # the terms the user wrote into the formula as well as the ones the flags
+  # generate: with only the latter, a model whose random effects came purely
+  # from the formula had has_random = TRUE -- which sends residualisation
+  # down the lme4 branch -- while the formula handed to lmer() had no random
+  # part at all, and lme4 rejected it with "No random effects terms
+  # specified in formula".
+  rand_terms <- c(if (rin) "(1 | nv)", if (rip) "(1 | pv)",
+                  if (ris) "(1 | sv)", if (rir) "(1 | rv)",
+                  parsed$random_terms)
+  rand_terms <- rand_terms[!duplicated(gsub("[[:space:]]", "", rand_terms))]
+  rand_part  <- if (length(rand_terms)) {
+    paste("+", rand_terms, collapse = " ")
+  } else {
+    ""
+  }
 
   # --- groups ---
   gp      <- normalise_groups(groups, data[[dep]], large = large)
@@ -356,7 +460,8 @@ QAP <- function(formula,
   fit <- list()
   fit$base <- qap_fit_baseline(mod, pred, dep, family, estimator, use_fixest,
                                fixest_se_cluster, use_robust_errors, main,
-                               has_random, reference, comparison)
+                               has_random, reference, comparison,
+                               fixest_vcov = vcov)
 
   # --- permutations ---
   if (fast_ok) {
@@ -382,7 +487,7 @@ QAP <- function(formula,
                          valid_list, large, rand_part, mod, family, estimator,
                          use_fixest, fixest_se_cluster, use_robust_errors,
                          has_random, comparison, reference, ncores, css,
-                         multi_mode)
+                         multi_mode, fixest_vcov = vcov)
   }
   fit$lower  <- agg$lower
   fit$larger <- agg$larger
@@ -456,6 +561,9 @@ QAP <- function(formula,
   # GMM always reports heteroskedasticity-robust (MDS) standard errors,
   # whether or not use_robust_errors was set.
   fit$robust_se <- use_robust_errors || estimator == "gmm"
+  # The fixest vcov actually used, kept so print() and summary() can name it
+  # instead of guessing whether it was robust.
+  fit$vcov_spec <- vcov
   fit$estimator <- estimator
   fit$weighted  <- !is.null(weights)
   fit$offset    <- !is.null(offset)
@@ -741,11 +849,13 @@ qap_build_pred <- function(data, dep, data_vars, groups, diag, mode,
 
 qap_fit_baseline <- function(mod, pred, dep, family, estimator, use_fixest,
                              fixest_se_cluster, use_robust_errors, main_vars,
-                             has_random, reference, comparison) {
+                             has_random, reference, comparison,
+                             fixest_vcov = NULL) {
   fit1 <- function(p) {
     f <- fit_qap_model(mod = mod, pred = p, family = family,
                        estimator = estimator, use_fixest = use_fixest,
                        fixest_se_cluster = fixest_se_cluster,
+                       fixest_vcov = fixest_vcov,
                        use_robust_errors = use_robust_errors,
                        main_vars = main_vars, has_random = has_random,
                        reference = reference, baseline = TRUE)

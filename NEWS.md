@@ -60,6 +60,23 @@ analysis affected by these.**
 
 ## New features
 
+* **`vcov` argument.** The variance-covariance specification is handed
+  straight to `fixest::feglm()`, so anything **fixest** accepts works:
+  a name (`vcov = "hetero"`, `"cluster"`, `"twoway"`, `"NW"`, `"DK"`,
+  `"conley"`), a formula naming the dimensions (`vcov = ~sv`,
+  `NW(2) ~ id + period`), or a vcov function. Variables named in a formula
+  are looked up in `data` like any other variable.
+
+  Asking for a `vcov` routes the fit through `feglm()` even when the
+  formula has no `|` fixed effects, which is how you get fixest's standard
+  errors on a model that absorbs nothing. The requested errors are the ones
+  the permutation t-values are built from, not a relabelling of the
+  baseline fit, and `summary()` names the specification that was used.
+
+  `fixest_se_cluster = "g"` is now documented as shorthand for
+  `vcov = ~g`; giving both is an error, because **fixest** itself rejects
+  that combination.
+
 * **`predict()`**, including `type = "matrix"`, which puts the predictions
   back into the shape of the network with `NA` in every structurally
   excluded cell -- the diagonal, the redundant triangle in undirected mode,
@@ -136,6 +153,55 @@ analysis affected by these.**
   desynchronising the coefficient and t-value vectors.
 
 ## Other bug fixes
+
+* **Random effects written into the formula crashed under the default
+  `nullhyp = "qapspp"`**, with `No random effects terms specified in
+  formula`. Semi-partialling residualises each predictor on the others, and
+  that residualisation took its random structure from the
+  `random_intercept_*` flags alone. A model whose random effects came only
+  from the formula therefore had `has_random = TRUE`, which routes
+  residualisation through **lme4**, while the formula handed to `lmer()`
+  carried no random term at all. The terms the user writes are now carried
+  through alongside the generated ones. Affected `y ~ x1 + (1|sv)` and
+  anything like it; `nullhyp = "qapy"` was unaffected.
+
+* **A grouping variable of your own in `(1|g)` never reached the model
+  frame**, so anything but the generated `sv`/`rv`/`nv`/`pv` failed with
+  `object 'g' not found` under both null hypotheses. Grouping variables are
+  now collected from the formula like any other data variable.
+
+* **A flag no longer duplicates a term the formula already has.**
+  `QAP(y ~ x1 + (1|sv), random_intercept_sender = TRUE)` built
+  `... + (1|sv) + (1|sv)`, which **lme4** accepts but fits as two variance
+  components for one grouping.
+
+* **A transformed predictor is rejected with a clear message.** `has_random`
+  was decided by testing the formula string for `(`, which any transformed
+  term also satisfies, so `y ~ log(x1) + x2` was treated as a mixed model
+  and sent to `lmer()` with nothing to group on. `has_random` now depends on
+  the random terms themselves, and a predictor that is not a plain variable
+  from `data` is refused up front rather than failing deep in the
+  permutation loop. Interactions of plain variables (`x1 * x2`) are
+  unaffected.
+
+* A **fixest** fit that absorbs no fixed effects reported the intercept
+  twice: once as the `NA` placeholder that stands for an absorbed
+  intercept, and once as the real estimate `feglm()` returns when it has
+  nothing to absorb. The placeholder is now added only when the intercept
+  really was absorbed. Only reachable through `fixest_se_cluster` (or the
+  new `vcov`) on a formula without `|`.
+
+* Every **fixest** fit reported `r.squared = NA`. `fixest::r2()` leaves
+  `r2` and `ar2` at `NA` for `feglm()`, reporting pseudo-R-squareds
+  instead; the gaussian case now falls back to the squared correlation
+  between outcome and fitted values, which is exactly what `lm()` calls
+  R-squared when nothing is absorbed. Where no adjusted R-squared is
+  available it is omitted rather than printed as `NA`.
+
+* Per-permutation convergence messages -- **lme4**'s `boundary (singular)
+  fit` above all -- are no longer emitted. A mixed-model run produced one
+  per permutation per predictor, thousands of lines saying nothing about
+  the model being reported. The baseline fit's diagnostics are unchanged.
 
 * `sample()` was called on permutation groups of size one, where
   `sample(7)` returns a permutation of `1:7` rather than `7`. Any grouped
@@ -289,6 +355,13 @@ run re-checks its first batch at runtime and stops if the two disagree.
 
 * The package license is now GPL (>= 3). `DESCRIPTION` previously declared
   `MIT + file LICENSE` while the `LICENSE` file contained the GPL-3 text.
+* The slowest tests -- the substantive GMM ones above all -- are wrapped in
+  `skip_on_cran()`, bringing `R CMD check` well inside CRAN's time limit.
+  The full suite still runs on every push in GitHub Actions.
+* `combine_qap_estimates()` refuses to pool runs fitted with different
+  `vcov` specifications, alongside the settings it already checked.
+* Four internal GMM helpers were missing `@keywords internal` and so
+  appeared as public topics.
 * `QAP()` and `probabilistic_confusion_matrix()` restore the caller's RNG
   state on exit instead of leaving `set.seed()` applied globally.
 * `QAP()` only changes the active `future` plan when `ncores` is given;
