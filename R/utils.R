@@ -787,10 +787,14 @@ aggregate_perm_results <- function(results, reps) {
 #' Stack per-permutation draws into b and t matrices
 #'
 #' @param draws List of per-permutation results: 2 x k matrices, or length-2
-#'   vectors when a single predictor was tested.
+#'   vectors when a single predictor was tested.  A multinomial fit stacks a
+#'   block of \code{h = ncat - 1} b-rows above h t-rows (or a length-2h
+#'   vector); each block is flattened column-major to match
+#'   \code{qap_flat_names()}.
 #'
-#' @return A list with \code{b} and \code{t}, each \code{n_perm x k}, or NULL
-#'   if nothing was retained.
+#' @return A list with \code{b} and \code{t}, each \code{n_perm x k} (or
+#'   \code{n_perm x h} for a single multinomial predictor), or NULL if
+#'   nothing was retained.
 #' @keywords internal
 
 qap_stack_draws <- function(draws) {
@@ -798,15 +802,32 @@ qap_stack_draws <- function(draws) {
   first <- draws[[1]]
 
   if (is.matrix(first)) {
-    if (nrow(first) != 2L) return(NULL)   # multinomial: not a b/t pair
-    nm <- colnames(first)
-    b  <- do.call(rbind, lapply(draws, function(d) d[1, ]))
-    tv <- do.call(rbind, lapply(draws, function(d) d[2, ]))
+    h <- nrow(first) %/% 2L
+    if (h < 1L || nrow(first) != 2L * h) return(NULL)
+    bi <- seq_len(h)
+    ti <- h + bi
+    if (h == 1L) {
+      nm <- colnames(first)
+      b  <- do.call(rbind, lapply(draws, function(d) d[1, ]))
+      tv <- do.call(rbind, lapply(draws, function(d) d[2, ]))
+    } else {
+      cats <- sub("^b:", "", rownames(first)[bi])
+      nm   <- as.vector(outer(cats, colnames(first),
+                              function(a, b) paste(a, b, sep = ":")))
+      b  <- do.call(rbind, lapply(draws, function(d)
+        as.vector(d[bi, , drop = FALSE])))
+      tv <- do.call(rbind, lapply(draws, function(d)
+        as.vector(d[ti, , drop = FALSE])))
+    }
     colnames(b) <- colnames(tv) <- nm
   } else {
-    if (length(first) != 2L) return(NULL)
-    b  <- matrix(vapply(draws, function(d) d[[1]], numeric(1)), ncol = 1)
-    tv <- matrix(vapply(draws, function(d) d[[2]], numeric(1)), ncol = 1)
+    h <- length(first) %/% 2L
+    if (h < 1L || length(first) != 2L * h) return(NULL)
+    bi <- seq_len(h)
+    b  <- matrix(unlist(lapply(draws, function(d) unname(d[bi]))),
+                 ncol = h, byrow = TRUE)
+    tv <- matrix(unlist(lapply(draws, function(d) unname(d[h + bi]))),
+                 ncol = h, byrow = TRUE)
   }
   list(b = b, t = tv)
 }

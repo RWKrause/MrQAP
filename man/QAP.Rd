@@ -35,7 +35,8 @@ QAP(
   receiver = NULL,
   perceiver = NULL,
   split_by = NULL,
-  edge_attr = NULL
+  edge_attr = NULL,
+  test_parameters = NULL
 )
 }
 \arguments{
@@ -202,10 +203,33 @@ giving one network per level.}
 \item{edge_attr}{Character; the edge attribute to read from
 \code{igraph}/\code{network} objects.  \code{NULL} gives a binary
 adjacency matrix.}
+
+\item{test_parameters}{Character vector of predictor names, or
+\code{NULL} (default) to test them all.  Under \code{"qapspp"} each
+predictor gets its own set of \code{reps} permutations, so naming only
+the predictors your hypotheses concern skips the others' permutations
+entirely and cuts the run time roughly in proportion.  The model is
+still fitted, and every named predictor still residualised, on all
+predictors; the untested ones simply get \code{NA} p-values and
+permutation moments.  Names must be variables from the formula: the
+intercept and interaction terms are never permuted on their own.  The
+order you give them in does not matter.  Under \code{"qapy"} a single
+permutation of the outcome tests every coefficient at once, so there
+is nothing to save; a strict subset warns and all are tested.}
 }
 \value{
 An object of class \code{QAPCSS} (CSS data), \code{QAPRegression}
   (gaussian, no comparisons) or \code{QAPGLM} (everything else).
+
+  Besides the coefficients and the permutation p-values (\code{lower},
+  \code{larger}, \code{abs}), it carries \code{null_dist}, the permuted
+  coefficients and t-values themselves (\code{b} and \code{t}, one row per
+  permutation; dropped by \code{less_mem}), and \code{null_moments}, a
+  matrix with rows \code{b_mean}, \code{b_sd}, \code{t_mean} and
+  \code{t_sd} summarising them per coefficient (always kept).  A
+  comparison model holds one of each per comparison.  Coefficients that
+  were not permuted -- the intercept under \code{"qapspp"}, and anything
+  left out of \code{test_parameters} -- are \code{NA} throughout.
 }
 \description{
 Estimates regression models on network data with permutation-based

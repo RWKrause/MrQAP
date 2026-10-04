@@ -92,6 +92,8 @@ print.QAPCSS <- function(x, ...) {
     cat("\n")
   }
 
+  qap_print_tested_note(x$test_parameters)
+
   # --- confusion matrix ---
   if (!is.null(x$confusion_matrix)) {
     cat("\n")

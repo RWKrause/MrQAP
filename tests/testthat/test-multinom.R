@@ -119,14 +119,16 @@ test_that("as.data.frame() matches summary() for a multinomial fit", {
   expect_equal(as.data.frame(fit), summary(fit)$coefficients)
 })
 
-test_that("confint() explains itself instead of blaming less_mem", {
+test_that("confint() works on the flattened multinomial draws", {
   skip_if_not_installed("nnet")
   d   <- make_mn()
   fit <- mn_fit(y ~ x1 + x2, data = d, family = "multinom",
                 nullhyp = "qapy", reps = 10, seed = 1)
-  # The draws are a matrix per replication and are never stacked, so
-  # null_dist is absent by construction -- refitting cannot help.
-  expect_error(confint(fit), "not available for .*multinomial")
+  # The draws used to be dropped because each replication is a matrix; they
+  # are now kept one column per category and term.
+  ci <- confint(fit)
+  expect_equal(rownames(ci), summary(fit)$coefficients$term)
+  expect_true(all(is.finite(ci)))
 })
 
 test_that("the reference category is respected", {

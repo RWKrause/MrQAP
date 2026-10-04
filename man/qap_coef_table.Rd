@@ -4,7 +4,7 @@
 \alias{qap_coef_table}
 \title{Build the coefficient table for one fitted QAP model}
 \usage{
-qap_coef_table(base, lower, larger, abs, family, nullhyp)
+qap_coef_table(base, lower, larger, abs, family, nullhyp, moments = NULL)
 }
 \arguments{
 \item{base}{A fit list (\code{fit$base}, or one element of it).}
@@ -14,6 +14,9 @@ qap_coef_table(base, lower, larger, abs, family, nullhyp)
 \item{family}{Character; model family.}
 
 \item{nullhyp}{Character; \code{"qapy"} or \code{"qapspp"}.}
+
+\item{moments}{Output of \code{qap_null_moments()} for that fit, or NULL
+(a fit from a version that did not record them).}
 }
 \value{
 A data frame with one row per coefficient.

@@ -96,6 +96,7 @@ print.QAPGLM <- function(x, ...,
 
   if (x$nullhyp == "qapspp")
     cat("\n* Significance test for the intercept is not defined with qapspp.\n")
+  qap_print_tested_note(x$test_parameters)
 
   cat("--------------\n")
 

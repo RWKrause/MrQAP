@@ -54,6 +54,19 @@
 #'   permuting it; \code{"qapy"} permutes the outcome.  With a single
 #'   predictor the two coincide and \code{"qapy"} is used.
 #'
+#' @param test_parameters Character vector of predictor names, or
+#'   \code{NULL} (default) to test them all.  Under \code{"qapspp"} each
+#'   predictor gets its own set of \code{reps} permutations, so naming only
+#'   the predictors your hypotheses concern skips the others' permutations
+#'   entirely and cuts the run time roughly in proportion.  The model is
+#'   still fitted, and every named predictor still residualised, on all
+#'   predictors; the untested ones simply get \code{NA} p-values and
+#'   permutation moments.  Names must be variables from the formula: the
+#'   intercept and interaction terms are never permuted on their own.  The
+#'   order you give them in does not matter.  Under \code{"qapy"} a single
+#'   permutation of the outcome tests every coefficient at once, so there
+#'   is nothing to save; a strict subset warns and all are tested.
+#'
 #' @param estimator Character; \code{"standard"} (default) or \code{"gmm"}
 #'   (for binomial, poisson, negbin and zip families).
 #'
@@ -164,6 +177,16 @@
 #' @return An object of class \code{QAPCSS} (CSS data), \code{QAPRegression}
 #'   (gaussian, no comparisons) or \code{QAPGLM} (everything else).
 #'
+#'   Besides the coefficients and the permutation p-values (\code{lower},
+#'   \code{larger}, \code{abs}), it carries \code{null_dist}, the permuted
+#'   coefficients and t-values themselves (\code{b} and \code{t}, one row per
+#'   permutation; dropped by \code{less_mem}), and \code{null_moments}, a
+#'   matrix with rows \code{b_mean}, \code{b_sd}, \code{t_mean} and
+#'   \code{t_sd} summarising them per coefficient (always kept).  A
+#'   comparison model holds one of each per comparison.  Coefficients that
+#'   were not permuted -- the intercept under \code{"qapspp"}, and anything
+#'   left out of \code{test_parameters} -- are \code{NA} throughout.
+#'
 #' @references
 #' Dekker, D., Krackhardt, D., & Snijders, T. A. B. (2007).
 #' Sensitivity of MRQAP tests to collinearity and autocorrelation conditions.
@@ -230,7 +253,8 @@ QAP <- function(formula,
                 receiver   = NULL,
                 perceiver  = NULL,
                 split_by   = NULL,
-                edge_attr  = NULL) {
+                edge_attr  = NULL,
+                test_parameters = NULL) {
 
   mode      <- match.arg(mode, c("directed", "undirected"))
   nullhyp   <- match.arg(nullhyp, c("qapspp", "qapy"))
@@ -346,6 +370,36 @@ QAP <- function(formula,
     use_robust_errors <- FALSE
   }
   if (nullhyp == "qapspp" && nx == 1) nullhyp <- "qapy"
+
+  # --- which predictors get permutations ---
+  # Kept in formula order whatever order they were given in, so the
+  # permutation stream -- and with it every p-value -- depends only on which
+  # predictors are tested.
+  tested <- main
+  if (!is.null(test_parameters)) {
+    if (!is.character(test_parameters) || !length(test_parameters) ||
+        anyNA(test_parameters))
+      stop("test_parameters must be a non-empty character vector of ",
+           "predictor names, or NULL to test them all.")
+    test_parameters <- unique(test_parameters)
+    bad <- setdiff(test_parameters, main)
+    if (length(bad))
+      stop("test_parameters names ",
+           paste0("'", bad, "'", collapse = ", "),
+           if (length(bad) == 1L) ", which is not" else ", which are not",
+           " a predictor that can be tested. Choose from: ",
+           paste0("'", main, "'", collapse = ", "),
+           ". The intercept and interaction terms are never permuted on ",
+           "their own.")
+    tested <- main[main %in% test_parameters]
+    if (nullhyp == "qapy" && !setequal(tested, main)) {
+      warning("test_parameters only reduces the work under nullhyp = ",
+              "\"qapspp\". Under \"qapy\" one permutation of the outcome ",
+              "tests every coefficient at once, so all are tested.")
+      tested <- main
+    }
+  }
+
   if (mode == "undirected" && (ris || rir)) {
     warning("Undirected mode: sender/receiver random intercepts set to FALSE.")
     ris <- rir <- FALSE
@@ -473,21 +527,24 @@ QAP <- function(formula,
     agg <- qap_gpu_perms(tmpl, data, dep, main, groups, reps, fit$base,
                          nullhyp, css, multi_mode, pred, valid, valid_list,
                          large, rand_part, has_random, mode,
-                         use_robust_errors = use_robust_errors)
+                         use_robust_errors = use_robust_errors,
+                         test_vars = tested)
   } else if (fast_ok) {
     # Plain OLS with complete data: skip the formula interface and the
     # per-permutation data frame entirely.
     agg <- qap_ols_perms(tmpl, data, dep, main, groups, reps, fit$base,
                          nullhyp, css, multi_mode, pred, valid, valid_list,
                          large, rand_part, has_random, mode, diag, ncores,
-                         use_robust_errors = use_robust_errors)
+                         use_robust_errors = use_robust_errors,
+                         test_vars = tested)
   } else {
     agg <- qap_cpu_perms(data, parsed, mode, diag, groups, reps, fit$base,
                          nullhyp, main, c(data_vars, wo_vars), pred, valid,
                          valid_list, large, rand_part, mod, family, estimator,
                          use_fixest, fixest_se_cluster, use_robust_errors,
                          has_random, comparison, reference, ncores, css,
-                         multi_mode, fixest_vcov = vcov)
+                         multi_mode, fixest_vcov = vcov,
+                         test_vars = tested)
   }
   fit$lower  <- agg$lower
   fit$larger <- agg$larger
@@ -500,6 +557,15 @@ QAP <- function(formula,
   # The permutation draws themselves, used by confint(). Cheap to keep
   # (reps x k doubles) but suppressed by less_mem like the model object.
   if (!less_mem) fit$null_dist <- agg$draws
+  # Mean and SD of those draws. Four numbers per coefficient, so kept even
+  # under less_mem.
+  fit$null_moments <- if (is.null(comparison)) {
+    qap_null_moments(agg$draws)
+  } else {
+    lapply(agg$draws, qap_null_moments)
+  }
+  # NULL when everything was tested, so a default fit looks as it always did.
+  fit$test_parameters <- if (setequal(tested, main)) NULL else tested
 
   # --- package results ---
   # The object has the same shape whatever the input shape was.

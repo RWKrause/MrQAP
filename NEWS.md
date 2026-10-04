@@ -60,6 +60,33 @@ analysis affected by these.**
 
 ## New features
 
+* **`test_parameters` argument.** Name the predictors your hypotheses
+  concern, e.g. `test_parameters = c("x1", "x3")`, and under `"qapspp"`
+  only their residualised vectors are permuted. The others are skipped
+  outright, which cuts the run time roughly in proportion in a large model.
+  The model is still fitted, and every tested predictor still residualised,
+  on all predictors. Untested coefficients get `NA` p-values, and `print()`
+  and `summary()` say which predictors were tested. Predictors are always
+  run in formula order, so testing a subset reproduces the full run's
+  results for the first of them exactly. Under `"qapy"` there is nothing to
+  save, because one permutation of the outcome tests every coefficient, so
+  a strict subset warns and all coefficients are tested. The default,
+  `NULL`, tests everything and leaves results unchanged.
+
+* **Moments of the permutation distribution.** Every fit now carries
+  `null_moments`: the mean and SD of the permuted coefficients and
+  t-values for each term. It is kept even under `less_mem`, which drops the
+  draws themselves. `summary()`, `as.data.frame()` and `tidy()` gain the
+  columns `perm_b_mean`, `perm_b_sd`, `perm_t_mean` and `perm_t_sd`. The
+  printed summary shows the t-value pair as `Mean(t*)` and `SD(t*)`.
+  `combine_qap_estimates()` pools the moments as well, from the moments
+  alone, so this works without the draws.
+
+* **Multinomial fits keep their permutation draws.** They are stored in
+  `null_dist` with one column per category and term (`"cat:term"`, in the
+  order of the coefficient table). As a result, `confint()` now works for
+  multinomial fits.
+
 * **`vcov` argument.** The variance-covariance specification is handed
   straight to `fixest::feglm()`, so anything **fixest** accepts works:
   a name (`vcov = "hetero"`, `"cluster"`, `"twoway"`, `"NW"`, `"DK"`,
