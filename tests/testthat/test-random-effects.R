@@ -148,3 +148,31 @@ test_that("a plain model is not treated as having random effects", {
   expect_false(any(f$random))
   expect_s3_class(f$simple_fit, "lm")
 })
+
+
+# ---- residualisation never uses random intercepts -----------------------
+
+test_that("residualise_predictor() is plain OLS", {
+  set.seed(3)
+  pred <- data.frame(x1 = rnorm(40), x2 = rnorm(40), x3 = rnorm(40))
+  expect_equal(unname(residualise_predictor("x1", pred, c("x1", "x2", "x3"))),
+               unname(residuals(lm(x1 ~ x2 + x3, data = pred))))
+})
+
+test_that("qapspp with random intercepts never calls lmer() to residualise", {
+  skip_no_lme4()
+  d <- re_data()
+  calls <- 0L
+  real_lmer <- lme4::lmer
+  local_mocked_bindings(
+    lmer = function(formula, ...) {
+      calls <<- calls + 1L
+      real_lmer(formula, ...)
+    },
+    .package = "lme4"
+  )
+  # One predictor-on-predictor regression per tested predictor would add
+  # 2 calls on top of the baseline fit and the 2 x 3 permutation refits.
+  re_fit(y ~ x1 + x2 + (1 | sv), data = d, reps = 3, seed = 1)
+  expect_equal(calls, 1L + 2L * 3L)
+})

@@ -58,6 +58,15 @@ analysis affected by these.**
   come from the corresponding GLM fit, which is deterministic and
   data-driven; the same design gives 0.528. **Re-run any GMM analysis.**
 
+* **Semi-partialling no longer residualises on random intercepts.** Under
+  `nullhyp = "qapspp"`, a model with random intercepts (from the
+  `random_intercept_*` flags or `(1|g)` in the formula) residualised each
+  predictor with `lme4::lmer()` using the same random structure. The
+  residualising regression is now always OLS on the other predictors, so
+  the permuted residuals are exactly orthogonal to them; the outcome model
+  itself still has its random intercepts. **Re-run any `qapspp` analysis
+  with random intercepts.**
+
 ## New features
 
 * **`test_parameters` argument.** Name the predictors your hypotheses
@@ -188,8 +197,8 @@ analysis affected by these.**
   `random_intercept_*` flags alone. A model whose random effects came only
   from the formula therefore had `has_random = TRUE`, which routes
   residualisation through **lme4**, while the formula handed to `lmer()`
-  carried no random term at all. The terms the user writes are now carried
-  through alongside the generated ones. Affected `y ~ x1 + (1|sv)` and
+  carried no random term at all. Residualisation is now always OLS (see
+  above), so it no longer depends on the random structure. Affected `y ~ x1 + (1|sv)` and
   anything like it; `nullhyp = "qapy"` was unaffected.
 
 * **A grouping variable of your own in `(1|g)` never reached the model

@@ -86,7 +86,9 @@ In undirected mode each dyad contributes a single observation.}
 \item{nullhyp}{Character; \code{"qapspp"} (default, recommended) or
 \code{"qapy"}.  \code{"qapspp"} is Dekker's semi-partialling plus
 procedure, which residualises each predictor on the others before
-permuting it; \code{"qapy"} permutes the outcome.  With a single
+permuting it; \code{"qapy"} permutes the outcome.  The residualising
+regression is always OLS, without random intercepts, even when the
+outcome model has them.  With a single
 predictor the two coincide and \code{"qapy"} is used.}
 
 \item{estimator}{Character; \code{"standard"} (default) or \code{"gmm"}

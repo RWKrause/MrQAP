@@ -283,7 +283,7 @@ qap_compare_one <- function(b, t, base_b, base_t) {
 
 qap_ols_perms <- function(tmpl, data, dep, main, groups, reps, base_fit,
                           nullhyp, css, multi_mode, pred, valid, valid_list,
-                          large, rand_part, has_random, mode, diag, ncores,
+                          large, mode, diag, ncores,
                           use_robust_errors = FALSE, test_vars = main) {
 
   if (!is.null(ncores)) {
@@ -322,8 +322,8 @@ qap_ols_perms <- function(tmpl, data, dep, main, groups, reps, base_fit,
     n_valid <- c()
 
     for (xi in test_vars) {
-      d <- qap_residualise(xi, data, pred, main, has_random, rand_part,
-                           valid, valid_list, large, css, mode)
+      d <- qap_residualise(xi, data, pred, main, valid, valid_list, large,
+                           css, mode)
       if (is.null(d)) next
 
       xobj <- d[[xi]]

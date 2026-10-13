@@ -1072,29 +1072,25 @@ run_permutations <- function(reps, FUN, ..., p = NULL) {
 
 #' Residualise a predictor on all others (for qapspp)
 #'
-#' Fits a linear model of \code{xi} on all other predictors in the data frame
-#' and returns the residuals.
+#' Fits an OLS model of \code{xi} on all other predictors in the data frame
+#' and returns the residuals. This is always a plain \code{lm()}, even when
+#' the outcome model has random intercepts: the residuals are then exactly
+#' orthogonal to the other predictors, as Dekker's semi-partialling requires,
+#' and the node-level structure of \code{xi} that the permutation is meant
+#' to preserve is not partly absorbed into shrunken intercepts.
 #'
 #' @param xi Name of the variable to residualise.
 #' @param pred Data frame with all predictors.
 #' @param main_vars Character vector of main predictor names.
-#' @param has_random Logical; use lme4?
-#' @param rand_formula Character; random-effect part of formula (e.g.,
-#'   \code{"+ (1|sv)"}).
 #'
 #' @return Numeric vector of residuals.
 #' @keywords internal
 
-residualise_predictor <- function(xi, pred, main_vars,
-                                  has_random = FALSE,
-                                  rand_formula = "") {
+residualise_predictor <- function(xi, pred, main_vars) {
   others <- setdiff(main_vars, xi)
   modx_str <- paste(xi, "~ 1")
   if (length(others) > 0) {
     modx_str <- paste(modx_str, paste(others, collapse = " + "), sep = " + ")
-  }
-  if (has_random && nchar(trimws(rand_formula)) > 0) {
-    modx_str <- paste(modx_str, rand_formula)
   }
   modx <- as.formula(modx_str)
 
@@ -1108,13 +1104,7 @@ residualise_predictor <- function(xi, pred, main_vars,
     list(weights = pred[[".qap_weights"]])
   }
 
-  if (!has_random) {
-    xm <- do.call(lm, c(list(modx, data = pred), wo))
-  } else {
-    if (!requireNamespace("lme4", quietly = TRUE))
-      stop("Package 'lme4' is required for  random effects.")
-    xm <- do.call(lme4::lmer, c(list(modx, data = pred), wo))
-  }
+  xm <- do.call(lm, c(list(modx, data = pred), wo))
   residuals(xm)
 }
 

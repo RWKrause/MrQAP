@@ -51,7 +51,9 @@
 #' @param nullhyp Character; \code{"qapspp"} (default, recommended) or
 #'   \code{"qapy"}.  \code{"qapspp"} is Dekker's semi-partialling plus
 #'   procedure, which residualises each predictor on the others before
-#'   permuting it; \code{"qapy"} permutes the outcome.  With a single
+#'   permuting it; \code{"qapy"} permutes the outcome.  The residualising
+#'   regression is always OLS, without random intercepts, even when the
+#'   outcome model has them.  With a single
 #'   predictor the two coincide and \code{"qapy"} is used.
 #'
 #' @param test_parameters Character vector of predictor names, or
@@ -450,23 +452,6 @@ QAP <- function(formula,
   use_robust_errors <- resolve_robust_errors(use_robust_errors, family,
                                              estimator, has_random)
 
-  # Random-effect suffix used when residualising for qapspp. It must carry
-  # the terms the user wrote into the formula as well as the ones the flags
-  # generate: with only the latter, a model whose random effects came purely
-  # from the formula had has_random = TRUE -- which sends residualisation
-  # down the lme4 branch -- while the formula handed to lmer() had no random
-  # part at all, and lme4 rejected it with "No random effects terms
-  # specified in formula".
-  rand_terms <- c(if (rin) "(1 | nv)", if (rip) "(1 | pv)",
-                  if (ris) "(1 | sv)", if (rir) "(1 | rv)",
-                  parsed$random_terms)
-  rand_terms <- rand_terms[!duplicated(gsub("[[:space:]]", "", rand_terms))]
-  rand_part  <- if (length(rand_terms)) {
-    paste("+", rand_terms, collapse = " ")
-  } else {
-    ""
-  }
-
   # --- groups ---
   gp      <- normalise_groups(groups, data[[dep]], large = large)
   groups  <- gp$groups
@@ -526,7 +511,7 @@ QAP <- function(formula,
   if (gpu_ok) {
     agg <- qap_gpu_perms(tmpl, data, dep, main, groups, reps, fit$base,
                          nullhyp, css, multi_mode, pred, valid, valid_list,
-                         large, rand_part, has_random, mode,
+                         large, mode,
                          use_robust_errors = use_robust_errors,
                          test_vars = tested)
   } else if (fast_ok) {
@@ -534,13 +519,13 @@ QAP <- function(formula,
     # per-permutation data frame entirely.
     agg <- qap_ols_perms(tmpl, data, dep, main, groups, reps, fit$base,
                          nullhyp, css, multi_mode, pred, valid, valid_list,
-                         large, rand_part, has_random, mode, diag, ncores,
+                         large, mode, diag, ncores,
                          use_robust_errors = use_robust_errors,
                          test_vars = tested)
   } else {
     agg <- qap_cpu_perms(data, parsed, mode, diag, groups, reps, fit$base,
                          nullhyp, main, c(data_vars, wo_vars), pred, valid,
-                         valid_list, large, rand_part, mod, family, estimator,
+                         valid_list, large, mod, family, estimator,
                          use_fixest, fixest_se_cluster, use_robust_errors,
                          has_random, comparison, reference, ncores, css,
                          multi_mode, fixest_vcov = vcov,

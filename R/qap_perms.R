@@ -201,7 +201,6 @@ qap_draws_by_predictor <- function(per_xi, coef_names, reps) {
 #' @param data Named list of matrices or arrays.
 #' @param pred Vectorised data frame.
 #' @param main Character vector of predictor names.
-#' @param has_random,rand_part Random-effect handling for the residualisation.
 #' @param valid,valid_list Validity masks (CSS).
 #' @param large,css,mode Structure flags.
 #'
@@ -209,8 +208,8 @@ qap_draws_by_predictor <- function(per_xi, coef_names, reps) {
 #'   \code{xi} is not numeric and cannot be residualised.
 #' @keywords internal
 
-qap_residualise <- function(xi, data, pred, main, has_random, rand_part,
-                            valid, valid_list, large, css, mode) {
+qap_residualise <- function(xi, data, pred, main, valid, valid_list,
+                            large, css, mode) {
   probe <- if (large) data[[xi]][[1]] else data[[xi]]
   if (!is.numeric(probe)) {
     warning("Cannot residualise non-numeric predictor '", xi,
@@ -218,8 +217,7 @@ qap_residualise <- function(xi, data, pred, main, has_random, rand_part,
     return(NULL)
   }
 
-  xR <- residualise_predictor(xi, pred, main, has_random = has_random,
-                              rand_formula = rand_part)
+  xR <- residualise_predictor(xi, pred, main)
 
   out <- data
   out[[xi]] <- if (css) {
@@ -241,7 +239,7 @@ qap_residualise <- function(xi, data, pred, main, has_random, rand_part,
 
 qap_cpu_perms <- function(data, parsed, mode, diag, groups, reps, base_fit,
                           nullhyp, main, data_vars, pred, valid, valid_list,
-                          large, rand_part, mod, family, estimator,
+                          large, mod, family, estimator,
                           use_fixest, fixest_se_cluster, use_robust_errors,
                           has_random, comparison, reference, ncores, css,
                           multi_mode = FALSE, fixest_vcov = NULL,
@@ -285,8 +283,8 @@ qap_cpu_perms <- function(data, parsed, mode, diag, groups, reps, base_fit,
     n_valid <- c()
 
     for (xi in test_vars) {
-      d <- qap_residualise(xi, data, pred, main, has_random, rand_part,
-                           valid, valid_list, large, css, mode)
+      d <- qap_residualise(xi, data, pred, main, valid, valid_list, large,
+                           css, mode)
       if (is.null(d)) next
 
       res <- do.call(run_permutations,
@@ -339,7 +337,7 @@ qap_cpu_perms <- function(data, parsed, mode, diag, groups, reps, base_fit,
 
 qap_gpu_perms <- function(tmpl, data, dep, main, groups, reps, base_fit,
                           nullhyp, css, multi_mode, pred, valid, valid_list,
-                          large, rand_part, has_random, mode,
+                          large, mode,
                           use_robust_errors = FALSE, test_vars = main) {
 
   batch <- function(d, perm_var) {
@@ -355,8 +353,8 @@ qap_gpu_perms <- function(tmpl, data, dep, main, groups, reps, base_fit,
   per_xi  <- list()
   n_valid <- c()
   for (xi in test_vars) {
-    d <- qap_residualise(xi, data, pred, main, has_random, rand_part,
-                         valid, valid_list, large, css, mode)
+    d <- qap_residualise(xi, data, pred, main, valid, valid_list, large,
+                         css, mode)
     if (is.null(d)) next
     g <- batch(d, xi)
     n_valid[xi] <- g$n_valid
