@@ -283,8 +283,8 @@ qap_compare_one <- function(b, t, base_b, base_t) {
 
 qap_ols_perms <- function(tmpl, data, dep, main, groups, reps, base_fit,
                           nullhyp, css, multi_mode, pred, valid, valid_list,
-                          large, rand_part, has_random, mode, diag, ncores,
-                          use_robust_errors = FALSE) {
+                          large, mode, diag, ncores,
+                          use_robust_errors = FALSE, test_vars = main) {
 
   if (!is.null(ncores)) {
     restore <- setup_future_plan(ncores)
@@ -321,9 +321,9 @@ qap_ols_perms <- function(tmpl, data, dep, main, groups, reps, base_fit,
     per_xi  <- list()
     n_valid <- c()
 
-    for (xi in main) {
-      d <- qap_residualise(xi, data, pred, main, has_random, rand_part,
-                           valid, valid_list, large, css, mode)
+    for (xi in test_vars) {
+      d <- qap_residualise(xi, data, pred, main, valid, valid_list, large,
+                           css, mode)
       if (is.null(d)) next
 
       xobj <- d[[xi]]
@@ -352,11 +352,12 @@ qap_ols_perms <- function(tmpl, data, dep, main, groups, reps, base_fit,
       out$abs[,    xi] <- agg$abs
       per_xi[[xi]] <- agg$draws
     }
-    out$draws   <- qap_draws_by_predictor(per_xi, colnames(out$abs), reps)
+    out$draws   <- qap_draws_by_predictor(
+      per_xi, qap_flat_names(base_fit$coefficients), reps)
     out$n_valid <- n_valid
     out
   }
 
   qap_with_progressor(
-    body, steps = if (nullhyp == "qapy") reps else reps * length(main))
+    body, steps = if (nullhyp == "qapy") reps else reps * length(test_vars))
 }

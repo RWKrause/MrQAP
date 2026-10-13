@@ -94,6 +94,65 @@ qap_aggregate <- function(res, reps, comparison) {
 }
 
 
+#' Flattened coefficient names
+#'
+#' One name per reported coefficient, in the order \code{qap_coef_table()}
+#' lists them.  For an ordinary fit that is just \code{names(cf)}.  A
+#' multinomial fit's coefficients are a \code{(ncat - 1) x k} matrix, which
+#' is flattened column-major -- terms vary slowest, categories fastest -- to
+#' \code{"cat:term"}.
+#'
+#' @param cf Coefficient vector or matrix.
+#'
+#' @return Character vector with attribute \code{term}: the predictor each
+#'   element belongs to, so a predictor's columns can be found without
+#'   parsing the names (an interaction term itself contains a colon).
+#' @keywords internal
+
+qap_flat_names <- function(cf) {
+  if (is.matrix(cf)) {
+    nm   <- as.vector(outer(rownames(cf), colnames(cf),
+                            function(a, b) paste(a, b, sep = ":")))
+    term <- rep(colnames(cf), each = nrow(cf))
+  } else {
+    nm   <- names(cf)
+    term <- nm
+  }
+  structure(nm, term = term)
+}
+
+
+#' Moments of the permutation distribution
+#'
+#' Mean and standard deviation of the permuted coefficients and t-values,
+#' column by column.  Cheap to keep, so they survive \code{less_mem} even
+#' though the draws themselves do not.
+#'
+#' @param draws A list with \code{b} and \code{t} (each \code{reps x k}), or
+#'   NULL.
+#'
+#' @return A \code{4 x k} matrix with rows \code{b_mean}, \code{b_sd},
+#'   \code{t_mean} and \code{t_sd}, or NULL when there are no draws.
+#'   Columns that were never permuted are NA.
+#' @keywords internal
+
+qap_null_moments <- function(draws) {
+  if (is.null(draws) || is.null(draws$b) || is.null(draws$t)) return(NULL)
+  mom <- function(m) {
+    ok <- colSums(!is.na(m)) > 0
+    mu <- rep(NA_real_, ncol(m))
+    s  <- rep(NA_real_, ncol(m))
+    mu[ok] <- colMeans(m[, ok, drop = FALSE], na.rm = TRUE)
+    s[ok]  <- apply(m[, ok, drop = FALSE], 2, stats::sd, na.rm = TRUE)
+    rbind(mu, s)
+  }
+  out <- rbind(mom(draws$b), mom(draws$t))
+  dimnames(out) <- list(c("b_mean", "b_sd", "t_mean", "t_sd"),
+                        colnames(draws$b))
+  out
+}
+
+
 #' Assemble the per-predictor null distributions of a qapspp run
 #'
 #' Under semi-partialling each predictor gets its own set of permutations,
@@ -103,7 +162,9 @@ qap_aggregate <- function(res, reps, comparison) {
 #'
 #' @param per_xi Named list of \code{qap_stack_draws()} results, one per
 #'   predictor.
-#' @param coef_names Character vector of all coefficient names.
+#' @param coef_names Output of \code{qap_flat_names()}: all coefficient
+#'   names, with a \code{term} attribute.  A multinomial predictor owns one
+#'   column per category.
 #' @param reps Integer; permutations requested per predictor.
 #'
 #' @return A list with \code{b} and \code{t}, each \code{reps x k}.
@@ -113,12 +174,17 @@ qap_draws_by_predictor <- function(per_xi, coef_names, reps) {
   per_xi <- Filter(Negate(is.null), per_xi)
   if (!length(per_xi)) return(NULL)
 
+  term <- attr(coef_names, "term")
+  if (is.null(term)) term <- coef_names
+  coef_names <- as.vector(coef_names)
+
   mk <- function(which) {
     m <- matrix(NA_real_, nrow = reps, ncol = length(coef_names),
                 dimnames = list(NULL, coef_names))
     for (xi in names(per_xi)) {
-      v <- per_xi[[xi]][[which]][, 1]
-      m[seq_along(v), xi] <- v
+      v    <- per_xi[[xi]][[which]]
+      cols <- which(term == xi)
+      m[seq_len(nrow(v)), cols] <- v[, seq_along(cols)]
     }
     m
   }
@@ -135,7 +201,6 @@ qap_draws_by_predictor <- function(per_xi, coef_names, reps) {
 #' @param data Named list of matrices or arrays.
 #' @param pred Vectorised data frame.
 #' @param main Character vector of predictor names.
-#' @param has_random,rand_part Random-effect handling for the residualisation.
 #' @param valid,valid_list Validity masks (CSS).
 #' @param large,css,mode Structure flags.
 #'
@@ -143,8 +208,8 @@ qap_draws_by_predictor <- function(per_xi, coef_names, reps) {
 #'   \code{xi} is not numeric and cannot be residualised.
 #' @keywords internal
 
-qap_residualise <- function(xi, data, pred, main, has_random, rand_part,
-                            valid, valid_list, large, css, mode) {
+qap_residualise <- function(xi, data, pred, main, valid, valid_list,
+                            large, css, mode) {
   probe <- if (large) data[[xi]][[1]] else data[[xi]]
   if (!is.numeric(probe)) {
     warning("Cannot residualise non-numeric predictor '", xi,
@@ -152,8 +217,7 @@ qap_residualise <- function(xi, data, pred, main, has_random, rand_part,
     return(NULL)
   }
 
-  xR <- residualise_predictor(xi, pred, main, has_random = has_random,
-                              rand_formula = rand_part)
+  xR <- residualise_predictor(xi, pred, main)
 
   out <- data
   out[[xi]] <- if (css) {
@@ -175,10 +239,11 @@ qap_residualise <- function(xi, data, pred, main, has_random, rand_part,
 
 qap_cpu_perms <- function(data, parsed, mode, diag, groups, reps, base_fit,
                           nullhyp, main, data_vars, pred, valid, valid_list,
-                          large, rand_part, mod, family, estimator,
+                          large, mod, family, estimator,
                           use_fixest, fixest_se_cluster, use_robust_errors,
                           has_random, comparison, reference, ncores, css,
-                          multi_mode = FALSE) {
+                          multi_mode = FALSE, fixest_vcov = NULL,
+                          test_vars = main) {
 
   # Only touch the future plan when the caller asked for a core count;
   # otherwise leave whatever plan they set in place.
@@ -197,6 +262,7 @@ qap_cpu_perms <- function(data, parsed, mode, diag, groups, reps, base_fit,
          diag. = diag, mod. = mod, groups. = groups, fit. = base_fit,
          family. = family, estimator. = estimator, use_fixest. = use_fixest,
          fixest_se_cluster. = fixest_se_cluster,
+         fixest_vcov. = fixest_vcov,
          use_robust_errors. = use_robust_errors, has_random. = has_random,
          main_vars. = main, data_vars. = data_vars, parsed. = parsed,
          comp. = comparison, reference. = reference, css. = css,
@@ -216,9 +282,9 @@ qap_cpu_perms <- function(data, parsed, mode, diag, groups, reps, base_fit,
     per_xi  <- list()
     n_valid <- c()
 
-    for (xi in main) {
-      d <- qap_residualise(xi, data, pred, main, has_random, rand_part,
-                           valid, valid_list, large, css, mode)
+    for (xi in test_vars) {
+      d <- qap_residualise(xi, data, pred, main, valid, valid_list, large,
+                           css, mode)
       if (is.null(d)) next
 
       res <- do.call(run_permutations,
@@ -245,11 +311,13 @@ qap_cpu_perms <- function(data, parsed, mode, diag, groups, reps, base_fit,
     }
 
     out$draws <- if (is.null(comparison)) {
-      qap_draws_by_predictor(per_xi, colnames(out$abs), reps)
+      qap_draws_by_predictor(per_xi, qap_flat_names(base_fit$coefficients),
+                             reps)
     } else {
       stats::setNames(lapply(names(comparison), function(cn)
         qap_draws_by_predictor(
-          lapply(per_xi, `[[`, cn), colnames(out$abs[[cn]]), reps)),
+          lapply(per_xi, `[[`, cn),
+          qap_flat_names(base_fit[[cn]]$coefficients), reps)),
         names(comparison))
     }
     out$n_valid <- n_valid
@@ -257,7 +325,7 @@ qap_cpu_perms <- function(data, parsed, mode, diag, groups, reps, base_fit,
   }
 
   qap_with_progressor(
-    body, steps = if (nullhyp == "qapy") reps else reps * length(main))
+    body, steps = if (nullhyp == "qapy") reps else reps * length(test_vars))
 }
 
 
@@ -269,8 +337,8 @@ qap_cpu_perms <- function(data, parsed, mode, diag, groups, reps, base_fit,
 
 qap_gpu_perms <- function(tmpl, data, dep, main, groups, reps, base_fit,
                           nullhyp, css, multi_mode, pred, valid, valid_list,
-                          large, rand_part, has_random, mode,
-                          use_robust_errors = FALSE) {
+                          large, mode,
+                          use_robust_errors = FALSE, test_vars = main) {
 
   batch <- function(d, perm_var) {
     gpu_batch_ols(tmpl = tmpl, data = d, dep = dep, main = main,
@@ -284,9 +352,9 @@ qap_gpu_perms <- function(tmpl, data, dep, main, groups, reps, base_fit,
   out     <- qap_init_pmats(base_fit, NULL)
   per_xi  <- list()
   n_valid <- c()
-  for (xi in main) {
-    d <- qap_residualise(xi, data, pred, main, has_random, rand_part,
-                         valid, valid_list, large, css, mode)
+  for (xi in test_vars) {
+    d <- qap_residualise(xi, data, pred, main, valid, valid_list, large,
+                         css, mode)
     if (is.null(d)) next
     g <- batch(d, xi)
     n_valid[xi] <- g$n_valid
@@ -297,7 +365,8 @@ qap_gpu_perms <- function(tmpl, data, dep, main, groups, reps, base_fit,
     per_xi[[xi]] <- list(b = g$draws$b[, xi, drop = FALSE],
                          t = g$draws$t[, xi, drop = FALSE])
   }
-  out$draws   <- qap_draws_by_predictor(per_xi, colnames(out$abs), reps)
+  out$draws   <- qap_draws_by_predictor(
+    per_xi, qap_flat_names(base_fit$coefficients), reps)
   out$n_valid <- n_valid
   out
 }

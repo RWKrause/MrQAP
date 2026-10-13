@@ -25,7 +25,8 @@ QAPPermEst(
   comp.,
   reference.,
   css. = FALSE,
-  multi_mode. = FALSE
+  multi_mode. = FALSE,
+  fixest_vcov. = NULL
 )
 }
 \arguments{
@@ -73,6 +74,8 @@ already-residualised variable to permute for qapspp.}
 \item{css.}{Logical; CSS data?}
 
 \item{multi_mode.}{Logical; each dimension its own node set?}
+
+\item{fixest_vcov.}{fixest \code{vcov} specification, or NULL.}
 }
 \value{
 A list with lower/larger/abs comparison results, or NULL if this

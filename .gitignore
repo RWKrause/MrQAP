@@ -13,3 +13,6 @@ test.RData
 
 # pkgdown site
 docs/
+
+# Devices opened by tests/examples default to this if left unguarded
+Rplots.pdf

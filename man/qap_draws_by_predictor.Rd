@@ -10,7 +10,9 @@ qap_draws_by_predictor(per_xi, coef_names, reps)
 \item{per_xi}{Named list of \code{qap_stack_draws()} results, one per
 predictor.}
 
-\item{coef_names}{Character vector of all coefficient names.}
+\item{coef_names}{Output of \code{qap_flat_names()}: all coefficient
+names, with a \code{term} attribute.  A multinomial predictor owns one
+column per category.}
 
 \item{reps}{Integer; permutations requested per predictor.}
 }

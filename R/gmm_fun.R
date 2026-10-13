@@ -26,8 +26,8 @@ gmm_off <- function(data) if (is.null(data$off)) 0 else as.numeric(data$off)
 #' @param theta numeric; Vector of parameter values, see \code{?gmm::gmm}.
 #' @param data matrix; Data matrix for all X, see \code{?gmm::gmm}.
 #'
-#' @returns Returns moment the moment conditions
-#'
+#' @returns The moment conditions.
+#' @keywords internal
 
 poisson_moments <- function(theta, data) {
   Y <- as.numeric(data$y)
@@ -43,8 +43,8 @@ poisson_moments <- function(theta, data) {
 #' @param theta numeric; Vector of parameter values, see \code{?gmm::gmm}.
 #' @param data matrix; Data matrix for all X, see \code{?gmm::gmm}.
 #'
-#' @returns Returns moment the moment conditions
-#'
+#' @returns The moment conditions.
+#' @keywords internal
 logit_moments <- function(theta, data) {
   Y <- data$y
   X <- data$x
@@ -61,6 +61,7 @@ logit_moments <- function(theta, data) {
 #' @param gmmo gmm() output
 #'
 #' @returns residuals of the gmm()
+#' @keywords internal
 logit_resid <- function(gmmo) {
   Y <- gmmo$dat$y
   X <- gmmo$dat$x
@@ -74,6 +75,7 @@ logit_resid <- function(gmmo) {
 #' @param gmmo gmm() output
 #'
 #' @returns residuals of the gmm()
+#' @keywords internal
 poisson_resid <- function(gmmo) {
   Y <- gmmo$dat$y
   X <- gmmo$dat$x

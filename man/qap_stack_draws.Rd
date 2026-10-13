@@ -8,11 +8,15 @@ qap_stack_draws(draws)
 }
 \arguments{
 \item{draws}{List of per-permutation results: 2 x k matrices, or length-2
-vectors when a single predictor was tested.}
+vectors when a single predictor was tested.  A multinomial fit stacks a
+block of \code{h = ncat - 1} b-rows above h t-rows (or a length-2h
+vector); each block is flattened column-major to match
+\code{qap_flat_names()}.}
 }
 \value{
-A list with \code{b} and \code{t}, each \code{n_perm x k}, or NULL
-  if nothing was retained.
+A list with \code{b} and \code{t}, each \code{n_perm x k} (or
+  \code{n_perm x h} for a single multinomial predictor), or NULL if
+  nothing was retained.
 }
 \description{
 Stack per-permutation draws into b and t matrices

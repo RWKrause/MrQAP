@@ -211,6 +211,33 @@ They are not available for mixed models, where `QAP()` warns and falls back
 to model-based errors rather than reporting a number that is not what it
 claims to be.
 
+### fixest standard errors
+
+`use_robust_errors` is a switch with two positions. When you want something
+else — clustering on the sender, two-way clustering, Newey–West,
+Driscoll–Kraay — pass `vcov`, which goes straight to `fixest::feglm()`:
+
+```{r vcov, eval = requireNamespace("fixest", quietly = TRUE)}
+cfit <- QAP(y ~ x1 + x2, data = d, vcov = ~sv, reps = 200)
+round(rbind(model_based = fit$t, clustered_on_sender = cfit$t), 2)
+```
+
+Anything **fixest** accepts works: a name (`"iid"`, `"hetero"`, `"cluster"`,
+`"twoway"`, `"NW"`, `"DK"`, `"conley"`), a formula naming the dimensions
+(`~sv`, `~sv + rv`, `NW(2) ~ id + period`), or a vcov function. Variables
+named in a formula are looked up in `data` like any other variable, so
+`~sv` clusters on the sender index that `QAP()` generates for you.
+
+Two things are worth knowing. Asking for a `vcov` routes the fit through
+`feglm()` even when the formula has no `|` fixed effects — that is how you
+get fixest's standard errors on a model that absorbs nothing. And the errors
+you ask for are the ones the permutation t-values are built from, so the
+null distribution is the one that matches your standard errors rather than a
+relabelling of it. `summary()` names the specification it used.
+
+`fixest_se_cluster = "sv"` is shorthand for `vcov = ~sv`; giving both is an
+error, because **fixest** rejects that combination itself.
+
 ## Weights and offsets
 
 `weights` scales each dyad's contribution to the fit; `offset` enters the

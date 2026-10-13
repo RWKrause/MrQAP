@@ -12,8 +12,9 @@ logit_moments(theta, data)
 \item{data}{matrix; Data matrix for all X, see \code{?gmm::gmm}.}
 }
 \value{
-Returns moment the moment conditions
+The moment conditions.
 }
 \description{
 Auxiliary functions for GMM estimation - Logistic
 }
+\keyword{internal}

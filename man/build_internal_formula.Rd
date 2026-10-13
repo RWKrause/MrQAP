@@ -9,7 +9,8 @@ build_internal_formula(
   rin = FALSE,
   ris = FALSE,
   rir = FALSE,
-  rip = FALSE
+  rip = FALSE,
+  existing_terms = character(0)
 )
 }
 \arguments{
@@ -22,6 +23,13 @@ build_internal_formula(
 \item{rir}{Logical; random intercept for receivers.}
 
 \item{rip}{Logical; random intercept for perceivers (CSS only).}
+
+\item{existing_terms}{Character; random terms the user already wrote into
+\code{formula}, as returned by \code{parse_qap_formula()}.  A flag whose
+term is already there adds nothing, so the two sources cannot produce
+the same grouping twice.  Passed in rather than re-derived, because
+\code{findbars()} is not safe on a fixest formula and this function is
+called before the formula shape has been resolved.}
 }
 \value{
 An updated formula.

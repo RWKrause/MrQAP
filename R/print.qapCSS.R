@@ -42,7 +42,10 @@ print.QAPCSS <- function(x, ...) {
         format(x$reps), "permutations.\n")
   }
 
-  if (x$robust_se)
+  if (!is.null(x$vcov_spec))
+    cat("T-values are based on fixest vcov = ",
+        format_vcov_spec(x$vcov_spec), ".\n", sep = "")
+  else if (x$robust_se)
     cat("T-values are based on robust standard errors.\n")
 
   if (x$diag) {
@@ -88,6 +91,8 @@ print.QAPCSS <- function(x, ...) {
     cat("\nBIC of base model:", format(BIC(x$base$base_model)))
     cat("\n")
   }
+
+  qap_print_tested_note(x$test_parameters)
 
   # --- confusion matrix ---
   if (!is.null(x$confusion_matrix)) {

@@ -4,19 +4,7 @@
 \alias{qap_residualise}
 \title{Residualise a predictor and write the residuals back into the data}
 \usage{
-qap_residualise(
-  xi,
-  data,
-  pred,
-  main,
-  has_random,
-  rand_part,
-  valid,
-  valid_list,
-  large,
-  css,
-  mode
-)
+qap_residualise(xi, data, pred, main, valid, valid_list, large, css, mode)
 }
 \arguments{
 \item{xi}{Character; the predictor being tested.}
@@ -26,8 +14,6 @@ qap_residualise(
 \item{pred}{Vectorised data frame.}
 
 \item{main}{Character vector of predictor names.}
-
-\item{has_random, rand_part}{Random-effect handling for the residualisation.}
 
 \item{valid, valid_list}{Validity masks (CSS).}
 

@@ -15,31 +15,29 @@
 #' @param lower,larger,abs The p-value matrices for that fit.
 #' @param family Character; model family.
 #' @param nullhyp Character; \code{"qapy"} or \code{"qapspp"}.
+#' @param moments Output of \code{qap_null_moments()} for that fit, or NULL
+#'   (a fit from a version that did not record them).
 #'
 #' @return A data frame with one row per coefficient.
 #' @keywords internal
 
-qap_coef_table <- function(base, lower, larger, abs, family, nullhyp) {
+qap_coef_table <- function(base, lower, larger, abs, family, nullhyp,
+                           moments = NULL) {
   est <- base$coefficients
   tv  <- base$t
-  nm  <- names(est)
 
   # Multinomial coefficients are a matrix; flatten to one row per
   # category-by-term combination.  as.vector() is column-major, so the terms
   # vary slowest and the categories fastest -- the same order the p-value
-  # blocks below unpack in.
-  if (is.matrix(est)) {
-    nm  <- as.vector(outer(rownames(est), colnames(est),
-                           function(a, b) paste(a, b, sep = ":")))
-    # One flag per flattened element, marking which came from the intercept
-    # COLUMN.  Matching on the term string would not work: the flattened
-    # names read "B:(Intercept)".
-    is_icpt <- rep(colnames(est) == "(Intercept)", each = nrow(est))
-    est <- as.vector(est)
-    tv  <- as.vector(tv)
-  } else {
-    is_icpt <- names(est) == "(Intercept)"
-  }
+  # blocks below unpack in, and the order qap_flat_names() gives.
+  fn <- qap_flat_names(est)
+  nm <- as.vector(fn)
+  # One flag per flattened element, marking which came from the intercept
+  # COLUMN.  Matching on the name would not work for a multinomial fit: the
+  # flattened names read "B:(Intercept)".
+  is_icpt <- attr(fn, "term") == "(Intercept)"
+  est <- as.vector(est)
+  tv  <- as.vector(tv)
 
   # The p-value matrices stack the b-comparisons above the t-comparisons:
   # one row of each normally, and (ncat - 1) rows of each for a multinomial
@@ -65,6 +63,18 @@ qap_coef_table <- function(base, lower, larger, abs, family, nullhyp) {
     row.names = NULL
   )
 
+  # Mean and SD of the permutation distribution, matched by name so a
+  # column order that differs from the coefficients' cannot misalign them.
+  mom <- function(row) {
+    if (is.null(moments) || !row %in% rownames(moments))
+      return(rep(NA_real_, length(nm)))
+    unname(moments[row, match(nm, colnames(moments))])
+  }
+  out$perm_b_mean <- mom("b_mean")
+  out$perm_b_sd   <- mom("b_sd")
+  out$perm_t_mean <- mom("t_mean")
+  out$perm_t_sd   <- mom("t_sd")
+
   # Under semi-partialling the intercept is never permuted, so it has no
   # p-value; make that explicit rather than showing a stale number.
   if (nullhyp == "qapspp") {
@@ -74,7 +84,8 @@ qap_coef_table <- function(base, lower, larger, abs, family, nullhyp) {
   if (!family %in% c("gaussian")) {
     out$exp_estimate <- exp(out$estimate)
     out <- out[, c("term", "estimate", "exp_estimate", "statistic",
-                   "p_lower", "p_upper", "p_value")]
+                   "p_lower", "p_upper", "p_value",
+                   "perm_b_mean", "perm_b_sd", "perm_t_mean", "perm_t_sd")]
   }
   out
 }
@@ -239,19 +250,15 @@ vcov.QAP <- function(object, ...) {
 #' fit <- QAP(y ~ x1 + x2, data = d, reps = 200)
 #' confint(fit)
 confint.QAP <- function(object, parm, level = 0.95, ...) {
-  # A multinomial fit's draws are never stacked (the statistic is a matrix,
-  # not a b/t pair), so null_dist is absent by construction. Say that,
-  # rather than sending the user to less_mem, which cannot help here.
-  if (identical(object$family, "multinom"))
-    stop("Permutation confidence intervals are not available for ",
-         "multinomial fits: the permutation draws are a matrix per ",
-         "replication and are not retained. Use summary() for the ",
-         "permutation p-values.")
-
   one <- function(est, nd) {
     if (is.null(nd) || is.null(nd$b))
       stop("No permutation draws were retained, so a permutation-based ",
            "interval cannot be formed. Refit with less_mem = FALSE.")
+
+    # A multinomial fit's coefficients are a matrix; its draws are stored
+    # flattened to "cat:term", one column per element.
+    nm  <- as.vector(qap_flat_names(est))
+    est <- stats::setNames(as.vector(est), nm)
 
     s <- apply(nd$b, 2, stats::sd, na.rm = TRUE)
     s <- s[names(est)]
@@ -311,11 +318,13 @@ summary.QAP <- function(object, ...) {
     stats::setNames(lapply(names(object$comp), function(cn)
       qap_coef_table(object$base[[cn]], object$lower[[cn]],
                      object$larger[[cn]], object$abs[[cn]],
-                     object$family, object$nullhyp)),
+                     object$family, object$nullhyp,
+                     moments = object$null_moments[[cn]])),
       names(object$comp))
   } else {
     qap_coef_table(object, object$lower, object$larger, object$abs,
-                   object$family, object$nullhyp)
+                   object$family, object$nullhyp,
+                   moments = object$null_moments)
   }
 
   out <- list(
@@ -323,12 +332,14 @@ summary.QAP <- function(object, ...) {
     family        = object$family,
     nullhyp       = object$nullhyp,
     reps          = object$reps,
+    test_parameters = object$test_parameters,
     mode          = object$mode,
     diag          = object$diag,
     css           = isTRUE(object$css),
     multi_mode    = isTRUE(object$multi_mode),
     grouped       = !is.null(object$groups),
     robust_se     = isTRUE(object$robust_se),
+    vcov_spec     = object$vcov_spec,
     estimator     = object$estimator,
     random        = object$random,
     comp          = object$comp,
@@ -377,14 +388,21 @@ print.summary.QAP <- function(x, digits = max(3L, getOption("digits") - 3L),
       ")\n", sep = "")
   if (x$grouped)
     cat("Permutation: restricted to within groups\n")
-  if (x$robust_se)
+  if (!is.null(x$vcov_spec))
+    cat("Std. errors: fixest vcov = ", format_vcov_spec(x$vcov_spec), "\n",
+        sep = "")
+  else if (x$robust_se)
     cat("Std. errors: heteroskedasticity-consistent\n")
   if (!is.na(x$nobs))
     cat("Observations:", format(x$nobs), "\n")
 
-  if (!is.null(x$r.squared))
+  if (!is.null(x$r.squared) && !is.na(x$r.squared))
     cat("\nR-squared: ", format(round(x$r.squared, 4)),
-        "   Adjusted: ", format(round(x$adj.r.squared, 4)), "\n", sep = "")
+        # An absorbed-FE fit has no adjusted R-squared to report; printing
+        # "Adjusted: NA" reads as a failure rather than as not applicable.
+        if (!is.null(x$adj.r.squared) && !is.na(x$adj.r.squared))
+          paste0("   Adjusted: ", format(round(x$adj.r.squared, 4))),
+        "\n", sep = "")
   if (!is.null(x$theta))
     cat("\nNegative binomial dispersion (theta): ",
         format(round(x$theta, 4)), "\n", sep = "")
@@ -407,6 +425,7 @@ print.summary.QAP <- function(x, digits = max(3L, getOption("digits") - 3L),
 
   if (identical(x$nullhyp, "qapspp"))
     cat("\nThe intercept is not tested under semi-partialling plus.\n")
+  qap_print_tested_note(x$test_parameters)
   cat("p-values are proportions of ", format(x$reps),
       " permutations; the smallest distinguishable value is ",
       formatC(1 / x$reps, format = "f",
@@ -418,6 +437,26 @@ print.summary.QAP <- function(x, digits = max(3L, getOption("digits") - 3L),
   }
   cat("\n")
   invisible(x)
+}
+
+
+#' Note which predictors were tested
+#'
+#' Printed under the coefficient table when \code{test_parameters} left some
+#' predictors out, so their missing p-values are not mistaken for a failure.
+#'
+#' @param tested Character vector, or NULL when everything was tested.
+#'
+#' @return Invisibly NULL; prints.
+#' @keywords internal
+
+qap_print_tested_note <- function(tested) {
+  if (length(tested))
+    cat("Only ", paste(tested, collapse = ", "),
+        if (length(tested) == 1L) " was" else " were",
+        " tested (test_parameters); the other coefficients were not ",
+        "permuted.\n", sep = "")
+  invisible(NULL)
 }
 
 
@@ -472,6 +511,18 @@ qap_print_coefs <- function(tab, digits = 4, signif.stars = TRUE,
   cols[["Pr(<=t)"]]   <- format_perm_p(tab$p_lower, reps)
   cols[["Pr(>=t)"]]   <- format_perm_p(tab$p_upper, reps)
   cols[["Pr(>=|t|)"]] <- format_perm_p(tab$p_value, reps)
+  # Centre and spread of the permuted t-values: where the observed t sits
+  # relative to its own null distribution.  Shown as "-" when the term was
+  # not permuted, like its p-values.
+  if (!is.null(tab$perm_t_mean)) {
+    mom <- function(v) {
+      out <- num(v)
+      out[is.na(v)] <- "-"
+      out
+    }
+    cols[["Mean(t*)"]] <- mom(tab$perm_t_mean)
+    cols[["SD(t*)"]]   <- mom(tab$perm_t_sd)
+  }
 
   if (signif.stars) {
     p <- tab$p_value

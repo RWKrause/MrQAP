@@ -4,13 +4,7 @@
 \alias{residualise_predictor}
 \title{Residualise a predictor on all others (for qapspp)}
 \usage{
-residualise_predictor(
-  xi,
-  pred,
-  main_vars,
-  has_random = FALSE,
-  rand_formula = ""
-)
+residualise_predictor(xi, pred, main_vars)
 }
 \arguments{
 \item{xi}{Name of the variable to residualise.}
@@ -18,17 +12,16 @@ residualise_predictor(
 \item{pred}{Data frame with all predictors.}
 
 \item{main_vars}{Character vector of main predictor names.}
-
-\item{has_random}{Logical; use lme4?}
-
-\item{rand_formula}{Character; random-effect part of formula (e.g.,
-\code{"+ (1|sv)"}).}
 }
 \value{
 Numeric vector of residuals.
 }
 \description{
-Fits a linear model of \code{xi} on all other predictors in the data frame
-and returns the residuals.
+Fits an OLS model of \code{xi} on all other predictors in the data frame
+and returns the residuals. This is always a plain \code{lm()}, even when
+the outcome model has random intercepts: the residuals are then exactly
+orthogonal to the other predictors, as Dekker's semi-partialling requires,
+and the node-level structure of \code{xi} that the permutation is meant
+to preserve is not partly absorbed into shrunken intercepts.
 }
 \keyword{internal}

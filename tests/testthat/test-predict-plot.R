@@ -181,7 +181,11 @@ test_that("predict refuses what it cannot do", {
 test_that("plot draws one panel per tested coefficient", {
   d <- pp_data(); f <- pp_fit(d)
   pdf(NULL); on.exit(dev.off(), add = TRUE)
-  op <- graphics::par(mfrow = c(1, 2)); on.exit(graphics::par(op), add = TRUE)
+  # No par() restore: these settings belong to the throwaway device and die
+  # with it. Restoring them was registered after dev.off(), so it ran with
+  # no device open and R opened the default one -- writing an Rplots.pdf
+  # into the test directory on every run.
+  graphics::par(mfrow = c(1, 2))
   expect_invisible(plot(f))
   expect_no_error(plot(f, which = "x1"))
   expect_no_error(plot(f, statistic = "b"))

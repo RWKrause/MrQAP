@@ -4,17 +4,26 @@
 \alias{parse_qap_formula}
 \title{Parse a QAP formula into its components}
 \usage{
-parse_qap_formula(formula, fixest_se_cluster = NULL)
+parse_qap_formula(formula, fixest_se_cluster = NULL, fixest_vcov = NULL)
 }
 \arguments{
 \item{formula}{A formula object.}
 
 \item{fixest_se_cluster}{Optional cluster variable name for fixest.}
+
+\item{fixest_vcov}{Optional \code{vcov} specification for fixest.  Like
+\code{fixest_se_cluster}, asking for one routes the fit through
+\pkg{fixest} even when the formula has no \code{|} fixed effects.  When
+it is a formula (\code{~g}, \code{NW(2) ~ id + period}) the variables
+it names are added to \code{all_data_vars} so they are carried into the
+vectorised data.}
 }
 \value{
 A list with components: \code{dependent}, \code{main},
-  \code{fixed_effects}, \code{has_random}, \code{use_fixest},
-  \code{all_data_vars}.
+  \code{fixed_effects}, \code{has_random}, \code{random_terms},
+  \code{use_fixest}, \code{all_data_vars}.  \code{random_terms} holds the
+  lme4-style terms the user wrote, as strings such as \code{"(1 | sv)"},
+  and is empty for every other formula shape.
 }
 \description{
 Extracts dependent variable, main effects, fixed effects, and random effects

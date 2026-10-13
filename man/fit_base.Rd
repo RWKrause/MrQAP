@@ -15,6 +15,7 @@ fit_base(
   estimator = "standard",
   use_fixest = FALSE,
   fixest_se_cluster = NULL,
+  fixest_vcov = NULL,
   main_vars = NULL,
   reference = NULL
 )
@@ -39,6 +40,8 @@ fit_base(
 \item{use_fixest}{Logical.}
 
 \item{fixest_se_cluster}{Character or NULL.}
+
+\item{fixest_vcov}{fixest \code{vcov} specification, or NULL.}
 
 \item{main_vars}{Character vector.}
 

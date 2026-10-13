@@ -69,7 +69,8 @@ combine_qap_estimates <- function(res, res2 = NULL) {
   # A mismatch here means the p-values being averaged answer different
   # questions, which no amount of weighting can reconcile.
   settings <- c("nullhyp", "family", "estimator", "mode", "diag",
-                "css", "multi_mode", "robust_se", "reference")
+                "css", "multi_mode", "robust_se", "vcov_spec", "reference",
+                "test_parameters")
 
   for (i in seq_len(n_res)[-1]) {
     ri <- res[[i]]
@@ -78,9 +79,17 @@ combine_qap_estimates <- function(res, res2 = NULL) {
       stop("All models must be of the same class; model ", i, " is a '",
            class(ri)[1], "' but model 1 is a '", class(return_res)[1], "'.")
 
+    # A vcov formula carries the environment it was written in, so two runs
+    # that both asked for ~sv are not identical() if the calls were made
+    # from different frames. Compare what the specification says, not the
+    # object it is.
+    norm <- function(s, v) if (s == "vcov_spec") format_vcov_spec(v) else v
+
     for (s in settings) {
-      if (!identical(ri[[s]], return_res[[s]])) {
-        shown <- function(v) if (is.null(v)) "NULL" else format(v)
+      if (!identical(norm(s, ri[[s]]), norm(s, return_res[[s]]))) {
+        shown <- function(v) {
+          if (is.null(v)) "NULL" else paste(format(v), collapse = " ")
+        }
         stop("All models must be fitted with the same ", s, "; model ", i,
              " used '", shown(ri[[s]]), "' but model 1 used '",
              shown(return_res[[s]]), "'.")
@@ -121,6 +130,26 @@ combine_qap_estimates <- function(res, res2 = NULL) {
   #
   # A column with no weight -- the intercept under qapspp, or a predictor
   # that was skipped -- pools to NA, which is what its p-values already are.
+  # One weight per column of m: n_valid is a scalar under qapy and named
+  # by predictor under qapspp. A multinomial fit's moments have one column
+  # per category and term, so look each up by the term it belongs to.
+  spread_w <- function(w, m) {
+    k <- ncol(m)
+    if (length(w) > 1L && !is.null(colnames(m))) {
+      term <- colnames(m)
+      miss <- !term %in% names(w)
+      if (any(miss)) {
+        # "cat:term" -> "term"; a plain name never reaches here unless it
+        # was untested, and then stays NA.
+        stripped <- sub("^[^:]*:", "", term[miss])
+        term[miss] <- ifelse(stripped %in% names(w), stripped, term[miss])
+      }
+      unname(w[term])
+    } else {
+      rep(unname(w[1L]), k)
+    }
+  }
+
   pool <- function(a, b, wa, wb) {
     k  <- ncol(a)
     cn <- colnames(a)
@@ -136,6 +165,26 @@ combine_qap_estimates <- function(res, res2 = NULL) {
 
     num <- a * rep(w_a, each = nrow(a)) + b * rep(w_b, each = nrow(b))
     num / rep(w_a + w_b, each = nrow(a))
+  }
+
+  # Pool the mean and SD of the permutation distribution from the moments
+  # alone, so this works when less_mem dropped the draws. Each column has
+  # its own count, as for the p-values: the usual combination of two
+  # samples' means and variances.
+  pool_moments <- function(a, b, wa, wb) {
+    if (is.null(a) || is.null(b)) return(NULL)
+    na <- spread_w(wa, a)
+    nb <- spread_w(wb, a)
+    n  <- na + nb
+    out <- a
+    for (st in c("b", "t")) {
+      ma <- a[paste0(st, "_mean"), ]; mb <- b[paste0(st, "_mean"), ]
+      sa <- a[paste0(st, "_sd"), ];   sb <- b[paste0(st, "_sd"), ]
+      out[paste0(st, "_mean"), ] <- (na * ma + nb * mb) / n
+      ss <- (na - 1) * sa^2 + (nb - 1) * sb^2 + na * nb / n * (ma - mb)^2
+      out[paste0(st, "_sd"), ] <- sqrt(ss / (n - 1))
+    }
+    out
   }
 
   # Stack the permutation draws so confint() on the pooled object uses
@@ -155,6 +204,8 @@ combine_qap_estimates <- function(res, res2 = NULL) {
       return_res$larger <- pool(return_res$larger, nxt$larger, w_old, w_new)
       return_res$abs    <- pool(return_res$abs,    nxt$abs,    w_old, w_new)
       return_res$null_dist <- bind_draws(return_res$null_dist, nxt$null_dist)
+      return_res$null_moments <- pool_moments(return_res$null_moments,
+                                              nxt$null_moments, w_old, w_new)
     } else {
       for (com in ref_comp) {
         return_res$lower[[com]]  <- pool(return_res$lower[[com]],
@@ -165,6 +216,9 @@ combine_qap_estimates <- function(res, res2 = NULL) {
                                          nxt$abs[[com]],    w_old, w_new)
         return_res$null_dist[[com]] <- bind_draws(return_res$null_dist[[com]],
                                                   nxt$null_dist[[com]])
+        return_res$null_moments[[com]] <- pool_moments(
+          return_res$null_moments[[com]], nxt$null_moments[[com]],
+          w_old, w_new)
       }
     }
 

@@ -226,8 +226,8 @@ plot.QAP <- function(x, which = NULL, statistic = c("t", "b"),
     stop("plot() is not defined for a model fitted with comparison=. ",
          "Plot one comparison at a time from fit$null_dist[[name]].")
   if (identical(x$family, "multinom"))
-    stop("plot() is not available for multinomial fits: the permutation ",
-         "draws are a matrix per replication and are not retained.")
+    stop("plot() is not available for multinomial fits. The permutation ",
+         "draws are in fit$null_dist, one column per category and term.")
 
   nd <- x$null_dist
   if (is.null(nd) || is.null(nd[[statistic]]))
@@ -248,6 +248,10 @@ plot.QAP <- function(x, which = NULL, statistic = c("t", "b"),
     stop("No permutation draws for: ", paste(bad, collapse = ", "),
          if (identical(x$nullhyp, "qapspp") && "(Intercept)" %in% bad)
            ". The intercept is not tested under semi-partialling plus."
+         else if (any(bad %in% colnames(draws)) &&
+                  length(x$test_parameters))
+           paste0(". Only ", paste(x$test_parameters, collapse = ", "),
+                  " were tested (test_parameters).")
          else "")
 
   for (v in which) {

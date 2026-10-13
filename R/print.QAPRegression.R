@@ -37,9 +37,12 @@ print.QAPRegression <- function(x, ...,
   }
   cat("The outcome was treated as", format(paste0(x$mode, ".")), "\n")
 
-  if (!is.null(x$r.squared)) {
+  if (!is.null(x$r.squared) && !is.na(x$r.squared)) {
     cat("\nR-squared:    ", format(round(x$r.squared, 4)))
-    cat("\nAdj R-squared:", format(round(x$adj.r.squared, 4)), "\n")
+    # Not reported for an absorbed-FE fit; see print.summary.QAP().
+    if (!is.null(x$adj.r.squared) && !is.na(x$adj.r.squared))
+      cat("\nAdj R-squared:", format(round(x$adj.r.squared, 4)))
+    cat("\n")
   }
 
   cat("\nCoefficients:\n")
@@ -66,6 +69,7 @@ print.QAPRegression <- function(x, ...,
 
   if (x$nullhyp == "qapspp")
     cat("\n* Significance test for the intercept is not defined with qapspp.\n")
+  qap_print_tested_note(x$test_parameters)
 
   cat("\n--------------\n")
 
