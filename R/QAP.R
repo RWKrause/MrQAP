@@ -75,7 +75,9 @@
 #' @param reps Integer; number of permutations (default 1000).  Under
 #'   \code{"qapspp"} this many permutations are run \emph{per predictor}.
 #' @param seed Integer; optional random seed.  The RNG state is restored on
-#'   exit.
+#'   exit.  Binary fits also seed their probabilistic confusion-matrix
+#'   draws with it -- or with 350415 when it is \code{NULL} -- so those
+#'   metrics are reproducible either way.
 #' @param groups Vector, or list of vectors (one per network); restricts
 #'   permutation to occur only within groups.
 #' @param ncores Integer; number of cores for parallel processing via the
@@ -185,14 +187,45 @@
 #'   permutation; dropped by \code{less_mem}), and \code{null_moments}, a
 #'   matrix with rows \code{b_mean}, \code{b_sd}, \code{t_mean} and
 #'   \code{t_sd} summarising them per coefficient (always kept).  A
-#'   comparison model holds one of each per comparison.  Coefficients that
+#'   comparison model holds one of each per comparison.
+#'
+#'   Binary fits also carry \code{confusion_matrix}, a
+#'   \code{\link{probabilistic_confusion_matrix}} of the baseline model, and
+#'   \code{metric_change}, a data frame with one row per fixed-effect term
+#'   that involves a tested predictor (see \code{test_parameters}):
+#'   accuracy, sensitivity, specificity and precision of the model minus
+#'   those of the same model refitted without that term (no permutations),
+#'   each at the 0.5 cut-off (\code{_cut}) and averaged over 1000 Bernoulli
+#'   draws (\code{_draw}).  Positive values mean the term improves the
+#'   metric.  \code{summary()} prints the table.  A comparison model holds
+#'   one of each per comparison, for every comparison whose subset still
+#'   has both categories.
+#'
+#'   Binary fits are binomial fits, by maximum likelihood or GMM, and
+#'   gaussian fits whose outcome takes exactly two values: linear
+#'   probability models.  For those the lower value is read as 0 and the
+#'   higher as 1, and fitted values are taken as probabilities, with
+#'   anything below 0 set to 0 and above 1 set to 1.  How many were outside
+#'   [0, 1] is reported, and a warning, given once per session, notes that
+#'   such fits can be biased (Horrace & Oaxaca, 2006).
+#'
+#'   Coefficients that
 #'   were not permuted -- the intercept under \code{"qapspp"}, and anything
 #'   left out of \code{test_parameters} -- are \code{NA} throughout.
 #'
 #' @references
+#' Chen, K., Martin, R. S., & Wooldridge, J. M. (2023). Another look at the
+#' linear probability model and nonlinear index models. arXiv:2308.15338.
+#' \doi{10.48550/arXiv.2308.15338}
+#'
 #' Dekker, D., Krackhardt, D., & Snijders, T. A. B. (2007).
 #' Sensitivity of MRQAP tests to collinearity and autocorrelation conditions.
 #' \emph{Psychometrika}, 72(4), 563--581. \doi{10.1007/s11336-007-9016-1}
+#'
+#' Horrace, W. C., & Oaxaca, R. L. (2006). Results on the bias and
+#' inconsistency of ordinary least squares for the linear probability model.
+#' \emph{Economics Letters}, 90(3), 321--327.
+#' \doi{10.1016/j.econlet.2005.08.024}
 #'
 #' Krackhardt, D. (1988). Predicting with networks: Nonparametric multiple
 #' regression analysis of dyadic data. \emph{Social Networks}, 10(4),
@@ -566,6 +599,48 @@ QAP <- function(formula,
     fit$simple_fits <- lapply(fit$base, `[[`, "base_model")
   }
 
+  # --- classification metrics for binary outcomes ---
+  # Binomial fits (ML or GMM), and gaussian fits on a two-valued outcome,
+  # which are linear probability models. Before less_mem drops the model
+  # objects they are read from. A comparison model gets one confusion matrix
+  # and one change table per comparison, each on that comparison's own
+  # subset of dyads; the two-value check runs on that subset before it is
+  # recoded to 0/1, since a comparison may have lost one of its categories.
+  if (family %in% c("binomial", "gaussian")) {
+    cm_seed <- qap_confusion_seed(seed)
+    kind <- if (estimator == "gmm") "gmm"
+            else if (family == "gaussian") "lpm" else "glm"
+    classify <- function(bf, p, lev) {
+      cm <- qap_fit_confusion(bf, cm_seed, kind, p, dep, main, lev)
+      list(cm = cm,
+           mc = qap_metric_change(cm, mod, p, dep, family, estimator,
+                                  use_fixest, has_random, main, tested,
+                                  cm_seed, kind, lev))
+    }
+    if (is.null(comparison)) {
+      if (family == "binomial" || qap_is_binary(pred[[dep]])) {
+        lev <- if (kind == "lpm") sort(unique(pred[[dep]])) else c(0, 1)
+        cl  <- classify(fit$base, pred, lev)
+        fit$confusion_matrix <- cl$cm
+        fit$metric_change    <- cl$mc
+      }
+    } else {
+      cl <- lapply(names(comparison), function(cn) {
+        if (!qap_is_binary(pred[[dep]][pred[[dep]] %in% comparison[[cn]]]))
+          return(list(cm = NULL, mc = NULL))
+        classify(fit$base[[cn]],
+                 qap_comparison_data(pred, dep, comparison[[cn]]), c(0, 1))
+      })
+      names(cl) <- names(comparison)
+      fit$confusion_matrix <- lapply(cl, `[[`, "cm")
+      fit$metric_change    <- lapply(cl, `[[`, "mc")
+      if (all(vapply(fit$confusion_matrix, is.null, logical(1))))
+        fit$confusion_matrix <- fit$metric_change <- NULL
+    }
+    if (kind == "lpm" && !is.null(fit$confusion_matrix))
+      qap_warn_lpm(fit$confusion_matrix)
+  }
+
   # less_mem promised not to store the fitted model, but only ever skipped
   # the top-level copy: the same object survived in fit$base$base_model, so
   # the fit was no smaller (4.68 of 4.69 MB at n = 120) while the
@@ -577,16 +652,6 @@ QAP <- function(formula,
       fit$base$base_model <- NULL
     } else {
       fit$base <- lapply(fit$base, function(f) { f$base_model <- NULL; f })
-    }
-  }
-
-  if (family == "binomial" && is.null(comparison)) {
-    bm <- fit$base$base_model
-    if (!inherits(bm, "gmm")) {
-      fit$confusion_matrix <- probabilistic_confusion_matrix(
-        actual = pred[[dep]], predicted_prob = fitted(bm),
-        n_draws = 1000, seed = seed
-      )
     }
   }
 
@@ -919,9 +984,23 @@ qap_fit_baseline <- function(mod, pred, dep, family, estimator, use_fixest,
   out <- vector("list", length(comparison))
   names(out) <- names(comparison)
   for (k in seq_along(comparison)) {
-    pk <- pred[pred[[dep]] %in% comparison[[k]], ]
-    pk[[dep]] <- ifelse(pk[[dep]] == comparison[[k]][1], 0, 1)
-    out[[k]] <- fit1(pk)
+    out[[k]] <- fit1(qap_comparison_data(pred, dep, comparison[[k]]))
   }
   out
+}
+
+
+#' The dyads of one comparison, with the outcome recoded to 0/1
+#'
+#' @param pred Data frame of vectorised data.
+#' @param dep Character; dependent variable name.
+#' @param comp Length-2 vector; the first category becomes 0, the second 1.
+#'
+#' @return The subset of \code{pred}.
+#' @keywords internal
+
+qap_comparison_data <- function(pred, dep, comp) {
+  pk <- pred[pred[[dep]] %in% comp, ]
+  pk[[dep]] <- ifelse(pk[[dep]] == comp[1], 0, 1)
+  pk
 }

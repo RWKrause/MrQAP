@@ -23,6 +23,9 @@
 #'     \item{accuracy, sensitivity, specificity, precision, f1}{Mean metrics.}
 #'     \item{accuracy_sd}{Standard deviation of accuracy.}
 #'     \item{threshold_confusion_matrix}{Traditional threshold-based matrix.}
+#'     \item{threshold_accuracy, threshold_sensitivity, threshold_specificity,
+#'       threshold_precision}{The same metrics at the 0.5 cut-off;
+#'       \code{NA} where a denominator is zero.}
 #'   }
 #'
 #' @export
@@ -108,7 +111,13 @@ probabilistic_confusion_matrix <- function(actual,
       Actual    = factor(actual, levels = c(0, 1)),
       Predicted = factor(pred_class, levels = c(0, 1))
     )
-    result$threshold_accuracy <- mean(pred_class == actual)
+    ratio <- function(a, b) if (b > 0) a / b else NA_real_
+    c_tp <- sum(pred_class == 1 & actual_1)
+    c_fp <- sum(pred_class == 1 & actual_0)
+    result$threshold_accuracy    <- mean(pred_class == actual)
+    result$threshold_sensitivity <- ratio(c_tp, n_actual_1)
+    result$threshold_specificity <- ratio(n_actual_0 - c_fp, n_actual_0)
+    result$threshold_precision   <- ratio(c_tp, c_tp + c_fp)
   }
 
   class(result) <- "QAPConfusionMatrix"
@@ -132,18 +141,34 @@ print.QAPConfusionMatrix <- function(x, ...) {
                    dimnames = dimnames(x$confusion_matrix))
   print(noquote(ci_mat))
 
-  cat("\nDerived Metrics (mean across draws):\n")
-  cat("  Accuracy:    ", round(x$accuracy, 4),
-      " (SD:", round(x$accuracy_sd, 4), ")\n")
-  cat("  Sensitivity: ", round(x$sensitivity, 4), "\n")
-  cat("  Specificity: ", round(x$specificity, 4), "\n")
-  cat("  Precision:   ", round(x$precision, 4), "\n")
-  cat("  F1 Score:    ", round(x$f1, 4), "\n")
+  cat("\nDerived Metrics:\n")
+  tab <- cbind("Draws (mean)" = c(x$accuracy, x$sensitivity, x$specificity,
+                                  x$precision, x$f1))
+  if (!is.null(x$threshold_confusion_matrix)) {
+    # Objects from before 0.3.0 carried only the threshold accuracy.
+    cut <- function(nm) if (is.null(x[[nm]])) NA_real_ else x[[nm]]
+    tab <- cbind(tab, "Cut-off 0.5" = c(cut("threshold_accuracy"),
+                                        cut("threshold_sensitivity"),
+                                        cut("threshold_specificity"),
+                                        cut("threshold_precision"), NA))
+  }
+  rownames(tab) <- c("Accuracy", "Sensitivity", "Specificity", "Precision",
+                     "F1 Score")
+  print.table(round(tab, 4), na.print = "")
+  cat("SD of accuracy across draws:", round(x$accuracy_sd, 4), "\n")
+
+  # Set only for linear probability models.
+  if (!is.null(x$n_out)) {
+    cat("\nLinear probability model: ", x$n_out, " of ", x$n,
+        " fitted values (", round(100 * x$n_out / x$n, 1),
+        "%) lay outside [0, 1] and were truncated.\n", sep = "")
+    if (x$n_out > 0)
+      cat(strwrap(qap_lpm_bias_note()), sep = "\n")
+  }
 
   if (!is.null(x$threshold_confusion_matrix)) {
     cat("\nFor comparison - Threshold (0.5) Confusion Matrix:\n")
     print(x$threshold_confusion_matrix)
-    cat("  Accuracy:", round(x$threshold_accuracy, 4), "\n")
   }
   cat("\n")
 }

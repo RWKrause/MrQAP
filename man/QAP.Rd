@@ -98,7 +98,9 @@ predictor the two coincide and \code{"qapy"} is used.}
 \code{"qapspp"} this many permutations are run \emph{per predictor}.}
 
 \item{seed}{Integer; optional random seed.  The RNG state is restored on
-exit.}
+exit.  Binary fits also seed their probabilistic confusion-matrix
+draws with it -- or with 350415 when it is \code{NULL} -- so those
+metrics are reproducible either way.}
 
 \item{groups}{Vector, or list of vectors (one per network); restricts
 permutation to occur only within groups.}
@@ -229,7 +231,29 @@ An object of class \code{QAPCSS} (CSS data), \code{QAPRegression}
   permutation; dropped by \code{less_mem}), and \code{null_moments}, a
   matrix with rows \code{b_mean}, \code{b_sd}, \code{t_mean} and
   \code{t_sd} summarising them per coefficient (always kept).  A
-  comparison model holds one of each per comparison.  Coefficients that
+  comparison model holds one of each per comparison.
+
+  Binary fits also carry \code{confusion_matrix}, a
+  \code{\link{probabilistic_confusion_matrix}} of the baseline model, and
+  \code{metric_change}, a data frame with one row per fixed-effect term
+  that involves a tested predictor (see \code{test_parameters}):
+  accuracy, sensitivity, specificity and precision of the model minus
+  those of the same model refitted without that term (no permutations),
+  each at the 0.5 cut-off (\code{_cut}) and averaged over 1000 Bernoulli
+  draws (\code{_draw}).  Positive values mean the term improves the
+  metric.  \code{summary()} prints the table.  A comparison model holds
+  one of each per comparison, for every comparison whose subset still
+  has both categories.
+
+  Binary fits are binomial fits, by maximum likelihood or GMM, and
+  gaussian fits whose outcome takes exactly two values: linear
+  probability models.  For those the lower value is read as 0 and the
+  higher as 1, and fitted values are taken as probabilities, with
+  anything below 0 set to 0 and above 1 set to 1.  How many were outside
+  [0, 1] is reported, and a warning, given once per session, notes that
+  such fits can be biased (Horrace & Oaxaca, 2006).
+
+  Coefficients that
   were not permuted -- the intercept under \code{"qapspp"}, and anything
   left out of \code{test_parameters} -- are \code{NA} throughout.
 }
@@ -262,9 +286,18 @@ yb <- 0.6 * b1 + matrix(rnorm(9 * 5), 9, 5)
 QAP(y ~ x1, data = list(y = yb, x1 = b1), reps = 20)
 }
 \references{
+Chen, K., Martin, R. S., & Wooldridge, J. M. (2023). Another look at the
+linear probability model and nonlinear index models. arXiv:2308.15338.
+\doi{10.48550/arXiv.2308.15338}
+
 Dekker, D., Krackhardt, D., & Snijders, T. A. B. (2007).
 Sensitivity of MRQAP tests to collinearity and autocorrelation conditions.
 \emph{Psychometrika}, 72(4), 563--581. \doi{10.1007/s11336-007-9016-1}
+
+Horrace, W. C., & Oaxaca, R. L. (2006). Results on the bias and
+inconsistency of ordinary least squares for the linear probability model.
+\emph{Economics Letters}, 90(3), 321--327.
+\doi{10.1016/j.econlet.2005.08.024}
 
 Krackhardt, D. (1988). Predicting with networks: Nonparametric multiple
 regression analysis of dyadic data. \emph{Social Networks}, 10(4),

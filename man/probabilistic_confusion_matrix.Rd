@@ -35,6 +35,9 @@ An object of class \code{QAPConfusionMatrix} containing:
     \item{accuracy, sensitivity, specificity, precision, f1}{Mean metrics.}
     \item{accuracy_sd}{Standard deviation of accuracy.}
     \item{threshold_confusion_matrix}{Traditional threshold-based matrix.}
+    \item{threshold_accuracy, threshold_sensitivity, threshold_specificity,
+      threshold_precision}{The same metrics at the 0.5 cut-off;
+      \code{NA} where a denominator is zero.}
   }
 }
 \description{
