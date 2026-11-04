@@ -241,7 +241,10 @@ An object of class \code{QAPCSS} (CSS data), \code{QAPRegression}
   those of the same model refitted without that term (no permutations),
   each at the 0.5 cut-off (\code{_cut}) and averaged over 1000 Bernoulli
   draws (\code{_draw}).  Positive values mean the term improves the
-  metric.  \code{summary()} prints the table.  A comparison model holds
+  metric.  Its logical column \code{one_class} is TRUE when every fitted
+  probability of the reduced model lies on the same side of 0.5, so that
+  at the cut-off it predicts a single class; \code{summary()} prints the
+  table and stars those rows' cut-off values.  A comparison model holds
   one of each per comparison, for every comparison whose subset still
   has both categories.
 

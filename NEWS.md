@@ -78,7 +78,10 @@ analysis affected by these.**
   `metric_change`, with one row per term: the model's eight metrics minus
   those of the same model refitted without that term (no permutations or
   residualisation). Only terms involving a predictor in `test_parameters`
-  get a row, so a subset saves the refits too. The draws are seeded with
+  get a row, so a subset saves the refits too. Cut-off values are starred,
+  with a footnote, when the model without the term puts every observation
+  on the same side of 0.5 and so predicts one class (sensitivity 1 and
+  specificity 0, or the reverse). The draws are seeded with
   `seed`, or 350415 when it is `NULL`, so the metrics no longer change from
   run to run, and every refit uses the same seed so the differences are not
   Monte Carlo noise. Binomial GMM fits now get both too, with probabilities

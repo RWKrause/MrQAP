@@ -36,8 +36,10 @@ fitted to, weights and offset columns included.}
 \item{levels}{The two outcome values, lower first (\code{lpm}).}
 }
 \value{
-A data frame with a \code{term} column and the eight
-  differences, or NULL when the model has no terms to drop.
+A data frame with a \code{term} column, the eight differences,
+  and \code{one_class}: TRUE when every fitted probability of the
+  reduced model falls on the same side of 0.5, so that at the cut-off it
+  predicts a single class.  NULL when the model has no terms to drop.
 }
 \description{
 Refits the baseline model once per fixed-effect term with that term left

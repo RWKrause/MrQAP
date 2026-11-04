@@ -84,7 +84,7 @@ test_that("binomial fits carry a metric_change table, full minus reduced", {
   fit <- QAP(y ~ x1 + x2, data = d, family = "binomial", reps = 5, seed = 7)
   mc  <- fit$metric_change
   expect_s3_class(mc, "data.frame")
-  expect_equal(ncol(mc), 9)
+  expect_equal(ncol(mc), 10)
   expect_equal(mc$term, c("x1", "x2"))
 
   # The x2 row is the full model's metrics minus those of y ~ x1.
@@ -92,7 +92,7 @@ test_that("binomial fits carry a metric_change table, full minus reduced", {
              data = data.frame(y = d$y[row(d$y) != col(d$y)],
                                x1 = d$x1[row(d$x1) != col(d$x1)]))
   red_cm <- probabilistic_confusion_matrix(red$y, fitted(red), seed = 7)
-  expect_equal(unlist(mc[2, -1]),
+  expect_equal(unlist(mc[2, 2:9]),
                qap_class_metrics(fit$confusion_matrix) -
                  qap_class_metrics(red_cm))
 
@@ -270,4 +270,23 @@ test_that("metric_change covers only terms involving a tested predictor", {
                all_t$metric_change[all_t$metric_change$term %in%
                                      c("x2", "x1:x2"), ],
                ignore_attr = TRUE)
+})
+
+test_that("one-class reduced models are starred, with a footnote", {
+  d   <- cm_data()
+  # Without x1 only the intercept is left: one probability, one class.
+  fit <- QAP(y ~ x1, data = d, family = "binomial", reps = 5, seed = 7)
+  expect_true(fit$metric_change$one_class)
+  tab <- capture.output(qap_print_metric_change(fit$metric_change))
+  row <- grep("^x1 ", tab, value = TRUE)
+  expect_length(gregexpr("*", row, fixed = TRUE)[[1]], 4)
+  out <- capture.output(print(summary(fit)))
+  expect_true(any(grepl("same side of 0.5", out, fixed = TRUE)))
+
+  # A reduced model predicting both classes gets neither.
+  two <- QAP(y ~ x1 + x2, data = d, family = "binomial", reps = 5, seed = 7)
+  expect_false(two$metric_change$one_class[two$metric_change$term == "x2"])
+  mc <- two$metric_change[two$metric_change$term == "x2", ]
+  out2 <- capture.output(qap_print_metric_change(mc))
+  expect_false(any(grepl("*", out2, fixed = TRUE)))
 })

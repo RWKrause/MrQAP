@@ -193,8 +193,10 @@ qap_fixed_rhs <- function(mod, use_fixest) {
 #' @param seed Integer seed for the draws.
 #' @inheritParams qap_binary_outcome
 #'
-#' @return A data frame with a \code{term} column and the eight
-#'   differences, or NULL when the model has no terms to drop.
+#' @return A data frame with a \code{term} column, the eight differences,
+#'   and \code{one_class}: TRUE when every fitted probability of the
+#'   reduced model falls on the same side of 0.5, so that at the cut-off it
+#'   predicts a single class.  NULL when the model has no terms to drop.
 #' @keywords internal
 
 qap_metric_change <- function(full_cm, mod, pred, dep, family, estimator,
@@ -223,9 +225,10 @@ qap_metric_change <- function(full_cm, mod, pred, dep, family, estimator,
     })), error = function(e) NULL)
     if (is.null(cm)) {
       failed <<- c(failed, tm)
-      return(rep(NA_real_, length(full)))
+      return(c(rep(NA_real_, length(full)), NA))
     }
-    full - qap_class_metrics(cm)
+    c(full - qap_class_metrics(cm),
+      any(colSums(cm$threshold_confusion_matrix) == 0))
   })
 
   if (length(failed))
@@ -234,7 +237,8 @@ qap_metric_change <- function(full_cm, mod, pred, dep, family, estimator,
 
   out <- data.frame(term = terms, do.call(rbind, rows),
                     stringsAsFactors = FALSE, row.names = NULL)
-  names(out) <- c("term", names(full))
+  names(out) <- c("term", names(full), "one_class")
+  out$one_class <- as.logical(out$one_class)
   out
 }
 
@@ -314,13 +318,23 @@ qap_print_metric_change <- function(mc, digits = 4) {
   if (is.null(mc) || (is.list(mc) && !is.data.frame(mc) &&
                       all(vapply(mc, is.null, logical(1)))))
     return(invisible(NULL))
+  starred <- FALSE
   one <- function(tab) {
-    m <- round(as.matrix(tab[, -1, drop = FALSE]), digits)
-    dimnames(m) <- list(tab$term,
-                        paste0(rep(c("Acc", "Sens", "Spec", "Prec"),
-                                   each = 2),
-                               c("(0.5)", "(draw)")))
-    print.table(m, na.print = "NA")
+    m   <- as.matrix(tab[, 2:9, drop = FALSE])
+    out <- matrix(ifelse(is.na(m), "NA",
+                         formatC(m, format = "f", digits = digits)),
+                  nrow = nrow(m))
+    # Tables from before the one_class column carry no stars.
+    one_class <- if (is.null(tab$one_class)) rep(FALSE, nrow(m)) else
+      tab$one_class %in% TRUE
+    starred <<- starred || any(one_class)
+    cut <- c(1, 3, 5, 7)
+    out[, cut] <- paste0(out[, cut], ifelse(one_class, "*", " "))
+    dimnames(out) <- list(tab$term,
+                          paste0(rep(c("Acc", "Sens", "Spec", "Prec"),
+                                     each = 2),
+                                 c("(0.5)", "(draw)")))
+    print(noquote(out), right = TRUE)
   }
   cat("\nChange in classification from including each term",
       "(full model minus model without it):\n")
@@ -335,5 +349,16 @@ qap_print_metric_change <- function(mc, digits = 4) {
   }
   cat("(0.5) = 0.5 cut-off; (draw) = mean over 1000 Bernoulli draws from",
       "the fitted probabilities.\n")
+  if (starred)
+    cat(strwrap(paste(
+      "* Every fitted probability of the model without this term lies on",
+      "the same side of 0.5, so at the cut-off it predicts one class for",
+      "all observations: sensitivity 1 and specificity 0 when that class is",
+      "1, the reverse when it is 0.  Its accuracy is then the share of that",
+      "class, and its precision the share of 1s (NA when it predicts only",
+      "0s).  The (0.5) changes in sensitivity and specificity therefore",
+      "trade off against each other; read them together, or use the (draw)",
+      "columns, where a model without information scores at chance.")),
+      sep = "\n")
   invisible(NULL)
 }
