@@ -69,6 +69,33 @@ analysis affected by these.**
 
 ## New features
 
+* **Classification metrics for every binary fit, and what each term adds.**
+  Binomial fits now report accuracy, sensitivity, specificity and precision
+  both at the 0.5 cut-off and averaged over 1000 Bernoulli draws from the
+  fitted probabilities (only accuracy was given at the cut-off before).
+  Comparison models get them too, one confusion matrix per comparison;
+  they previously had none. `summary()` adds a table, stored as
+  `metric_change`, with one row per term: the model's eight metrics minus
+  those of the same model refitted without that term (no permutations or
+  residualisation). Only terms involving a predictor in `test_parameters`
+  get a row, so a subset saves the refits too. Cut-off values are starred,
+  with a footnote, when the model without the term puts every observation
+  on the same side of 0.5 and so predicts one class (sensitivity 1 and
+  specificity 0, or the reverse). The draws are seeded with
+  `seed`, or 350415 when it is `NULL`, so the metrics no longer change from
+  run to run, and every refit uses the same seed so the differences are not
+  Monte Carlo noise. Binomial GMM fits now get both too, with probabilities
+  rebuilt from the coefficients and the refits done by GMM.
+
+* **Linear probability models get the same tables.** A gaussian fit whose
+  outcome takes exactly two values (per comparison, in a comparison model)
+  is treated as an LPM: the lower value is read as 0 and the higher as 1,
+  and fitted values are used as probabilities, truncated to [0, 1]. The
+  number truncated is reported, and a warning, once per session, notes that
+  such fits can be biased (Horrace & Oaxaca, 2006) while the share outside
+  [0, 1] is no reliable guide to how much (Chen, Martin & Wooldridge,
+  2023).
+
 * **`test_parameters` argument.** Name the predictors your hypotheses
   concern, e.g. `test_parameters = c("x1", "x3")`, and under `"qapspp"`
   only their residualised vectors are permuted. The others are skipped

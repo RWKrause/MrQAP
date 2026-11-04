@@ -80,6 +80,9 @@ print.QAPRegression <- function(x, ...,
     print.table(cmat)
     cat("\n--------------\n")
   }
+
+  # --- confusion matrix (linear probability models) ---
+  qap_print_confusion(x$confusion_matrix)
   cat("\n")
   invisible(x)
 }

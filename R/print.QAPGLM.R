@@ -108,17 +108,14 @@ print.QAPGLM <- function(x, ...,
     cat("--------------\n")
   }
 
-  if (!is.null(x$simple_fit) && !is.null(x$estimator) &&
+  if (!is.null(x[["simple_fit"]]) && !is.null(x$estimator) &&
       x$estimator != "gmm") {
-    cat("\nAIC:", format(AIC(x$simple_fit)))
-    cat("\nBIC:", format(BIC(x$simple_fit)))
+    cat("\nAIC:", format(AIC(x[["simple_fit"]])))
+    cat("\nBIC:", format(BIC(x[["simple_fit"]])))
   }
 
   # --- confusion matrix ---
-  if (!is.null(x$confusion_matrix)) {
-    cat("\n\n")
-    print(x$confusion_matrix)
-  }
+  qap_print_confusion(x$confusion_matrix)
   cat("\n")
   invisible(x)
 }

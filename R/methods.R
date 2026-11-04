@@ -350,6 +350,7 @@ summary.QAP <- function(object, ...) {
     zi_coefficients   = object$zi_coefficients,
     random.intercepts = object$random.intercepts,
     confusion_matrix  = object$confusion_matrix,
+    metric_change     = object$metric_change,
     nobs          = suppressWarnings(nobs.QAP(object))
   )
   class(out) <- "summary.QAP"
@@ -431,10 +432,8 @@ print.summary.QAP <- function(x, digits = max(3L, getOption("digits") - 3L),
       formatC(1 / x$reps, format = "f",
               digits = max(2, ceiling(log10(x$reps)))), ".\n", sep = "")
 
-  if (!is.null(x$confusion_matrix)) {
-    cat("\n")
-    print(x$confusion_matrix)
-  }
+  qap_print_confusion(x$confusion_matrix)
+  qap_print_metric_change(x$metric_change)
   cat("\n")
   invisible(x)
 }
